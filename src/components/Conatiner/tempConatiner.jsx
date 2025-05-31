@@ -1,6 +1,6 @@
 import React from 'react'
 
- function Container({children}) {
+ function tempContainer({children}) {
     
 
     return (
@@ -12,4 +12,4 @@ import React from 'react'
     )
 }
 
-export default Container
+export default tempContainer
