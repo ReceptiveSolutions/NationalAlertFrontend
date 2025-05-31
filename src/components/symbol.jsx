@@ -1,6 +1,6 @@
 import React from 'react'
 import logo from '../assets/Logo.png'
- function symbol({width = '120px', height = '120px', }) {
+ function Logo({width = '120px', height = '120px', }) {
     return (
         <>
         <div>
@@ -14,4 +14,4 @@ import logo from '../assets/Logo.png'
     )
 }
 
-export default symbol
+export default Logo

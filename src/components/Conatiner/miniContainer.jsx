@@ -1,6 +1,6 @@
 import React from 'react'
 
-function miniContainer({children}) {
+function Container({children}) {
     return (
         <>
             <div className='w-full max-w-7xl mx-auto px-4'>
@@ -10,4 +10,4 @@ function miniContainer({children}) {
     )
 }
 
-export default miniContainer
+export default Container;

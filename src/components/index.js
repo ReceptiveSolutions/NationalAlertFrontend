@@ -1,11 +1,12 @@
-import symbol from "./symbol.jsx";
+// In your index.js:
+import Logo from "./symbol.jsx";
 import Header from "./Header/header";
 import Footer from "./Footer/footer";
-import miniContainer from "./Container/miniContainer.jsx";
+import Container from "./Conatiner/miniContainer.jsx";
 
 export {
-    symbol,
+    Logo,
     Header,
     Footer,
-    miniContainer
+    Container
 }
