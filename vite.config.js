@@ -9,5 +9,8 @@ export default defineConfig({
       react()
     , tailwindcss()
   ],
+  resolve: {
+    preserveSymlinks: true,  // Helps with case sensitivity
+  }
  
 })

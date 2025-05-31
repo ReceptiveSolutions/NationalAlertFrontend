@@ -1,10 +1,10 @@
-import Logo from "./logo";
+import symbol from "./symbol.jsx";
 import Header from "./Header/header";
 import Footer from "./Footer/footer";
 import miniContainer from "./Container/miniContainer.jsx";
 
 export {
-    Logo,
+    symbol,
     Header,
     Footer,
     miniContainer

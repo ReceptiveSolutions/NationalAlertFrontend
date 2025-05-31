@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Container, Logo } from '../index';
+import { miniContainer, Logo } from '../index';
 import { FiMenu, FiX, FiChevronDown } from 'react-icons/fi';
 
 function Header() {
@@ -33,7 +33,7 @@ function Header() {
         <>
             {/* Main Header */}
             <header className="bg-red-600 text-white sticky top-0 z-50">
-                <Container className="relative">
+                <miniContainer className="relative">
                     {/* Top Row */}
                     <div className="flex items-center justify-between py-3 px-2 sm:px-4">
                         {/* Explorer Button - Top Left */}
@@ -73,11 +73,11 @@ function Header() {
                             })}
                         </span>
                     </div>
-                </Container>
+                </miniContainer>
 
                 {/* Secondary Navbar */}
                 <nav className="bg-black text-white sticky top-0 z-40 py-2">
-                    <Container>
+                    <miniContainer>
                         <div className="flex space-x-3 sm:space-x-6 overflow-x-auto whitespace-nowrap px-2 sm:px-4 scrollbar-hide">
                             {secondaryLinks.map((link) => (
                                 <NavLink
@@ -93,7 +93,7 @@ function Header() {
                                 </NavLink>
                             ))}
                         </div>
-                    </Container>
+                    </miniContainer>
                 </nav>
             </header>
 
