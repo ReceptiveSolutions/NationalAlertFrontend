@@ -1,7 +1,7 @@
 import Logo from "./logo";
 import Header from "./Header/header";
  import Footer from "./Footer/footer";
-import Container from "./Container/container";
+import Container from "./container/container.jsx";
 
 export {
     Logo,
