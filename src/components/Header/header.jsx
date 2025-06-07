@@ -22,7 +22,8 @@ function Header() {
         { name: 'Business', path: '/business' },
         { name: 'Entertainment', path: '/entertainment' },
         // { name: 'Health', path: '/health' },
-        { name:'Latest', path:'/latest'}
+        { name:'Latest', path:'/latest'},
+        // {name : 'IndianSports', path:'/IndianSportsHomepage'}
     ];
 
     const toggleDropdown = (index) => {
@@ -54,12 +55,12 @@ function Header() {
                         </div>
 
                         {/* Submit News Button - Top Right */}
-                        <a href="mailto:test@gmail.com">
+                        <NavLink to="/crimeReportForm">
                             <button className="bg-white text-red-600 hover:bg-gray-100 px-2 py-1 sm:px-3 sm:py-2 rounded-md font-medium text-xs sm:text-sm transition-all duration-200 hover:shadow-md">
                                 <span className="hidden sm:inline">Submit News</span>
                                 <span className="sm:hidden">Submit</span>
                             </button>
-                        </a>
+                        </NavLink>
                     </div>
 
                     {/* Date - Bottom Left */}

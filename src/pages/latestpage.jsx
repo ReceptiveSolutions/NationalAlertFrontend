@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Query } from 'appwrite';
-import { databases } from '../appwrite/appwriteConfig';
+import { databases, storage } from '../appwrite/appwriteConfig';
 import conf from '../conf/conf';
 import { 
   RefreshCw, 
@@ -12,7 +12,8 @@ import {
   User,
   Calendar,
   Hash,
-  BookOpen
+  BookOpen,
+  Image as ImageIcon
 } from 'lucide-react';
 
 const LatestNews = ({ onNavigateToArticle }) => {
@@ -20,6 +21,43 @@ const LatestNews = ({ onNavigateToArticle }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedArticles, setExpandedArticles] = useState({});
+
+  // Updated function to get image URL using the same method as ArticleDetailPage
+  const getImageUrl = (imageId) => {
+    try {
+      if (!imageId) {
+        return null;
+      }
+      
+      // If it's already a URL, return it
+      if (typeof imageId === 'string' && imageId.startsWith('http')) {
+        return imageId;
+      }
+      
+      // Handle object type
+      if (typeof imageId === 'object' && imageId !== null) {
+        return imageId.url || imageId.src || imageId.href || null;
+      }
+      
+      // Use Appwrite storage.getFileView (same as ArticleDetailPage)
+      if (imageId && conf.appwriteBucketId) {
+        try {
+          const viewUrl = storage.getFileView(conf.appwriteBucketId, imageId);
+          if (typeof viewUrl === 'string') return viewUrl;
+          if (viewUrl?.href) return viewUrl.href;
+          return viewUrl?.toString() || null;
+        } catch (error) {
+          console.error('Error generating Appwrite URL:', error);
+          return null;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error in getImageUrl:', error);
+      return null;
+    }
+  };
 
   const fetchNews = async (isRefresh = false) => {
     try {
@@ -86,8 +124,7 @@ const LatestNews = ({ onNavigateToArticle }) => {
         onNavigateToArticle(article.$id);
       } else {
         // Fallback: redirect using window.location
-        window.location.href = `/article/${article.$id}`;// chnge kiya hai yaha 
-
+        window.location.href = `/article/${article.$id}`;
       }
     } else {
       // For shorter articles, you can still navigate to detail page
@@ -119,9 +156,19 @@ const LatestNews = ({ onNavigateToArticle }) => {
     return Math.ceil(wordCount / 200) || 1;
   };
 
+  // Helper function to get article image (same logic as ArticleDetailPage)
+  const getArticleImage = (article) => {
+    if (!article) return null;
+    const imageField = article.featuredimage || article.image || article.thumbnail;
+    if (typeof imageField === 'object' && imageField !== null) {
+      return imageField.url || imageField.src || imageField.href || null;
+    }
+    return imageField;
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen  flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="relative mb-8">
             <div className="w-20 h-20 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin mx-auto"></div>
@@ -136,9 +183,6 @@ const LatestNews = ({ onNavigateToArticle }) => {
 
   return (
     <div className="min-h-screen bg-white text-white">
-      {/* Hero Section */}
-      
-
       {/* News Cards Section */}
       <div className="max-w-7xl mx-auto px-4 py-16">
         {/* Section Header */}
@@ -188,47 +232,70 @@ const LatestNews = ({ onNavigateToArticle }) => {
               const isExpanded = expandedArticles[article.$id];
               const readingTime = getReadingTime(article.content);
               
+              // Get image URL using the same method as ArticleDetailPage
+              const articleImage = getArticleImage(article);
+              const imageUrl = getImageUrl(articleImage);
+              
+              console.log('Article:', article.title, 'Image field:', articleImage, 'Final URL:', imageUrl);
+              
               return (
                 <article
                   key={article.$id}
-                  className="group bg-gradient-to-br from-gray-900 to-gray-800  overflow-hidden shadow-2xl   relative"
+                  className="group bg-gradient-to-br from-gray-900 to-gray-800 overflow-hidden shadow-2xl relative"
                 >
-                  
-
                   {/* Featured Image */}
-                  {(article.image || article.featuredImage || article.thumbnail) && (
-                    <div className="relative h-56 bg-gray-800 overflow-hidden">
+                  <div className="relative h-56 bg-gray-800 overflow-hidden">
+                    {imageUrl ? (
                       <img
-                        src={article.image || article.featuredImage || article.thumbnail}
+                        src={imageUrl}
                         alt={article.title || 'Article image'}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        onLoad={() => {
+                          console.log('✅ Image loaded successfully:', imageUrl);
+                        }}
                         onError={(e) => {
+                          console.error('❌ Image failed to load:', imageUrl);
+                          console.error('Error details:', {
+                            articleImage: articleImage,
+                            bucketId: conf.appwriteBucketId,
+                            fullUrl: imageUrl
+                          });
                           e.target.style.display = 'none';
-                          e.target.parentElement.style.height = '0px';
-                          e.target.parentElement.style.display = 'none';
+                          e.target.parentElement.querySelector('.fallback-placeholder').style.display = 'flex';
                         }}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                      
-                      {/* Category Badge */}
-                      {article.category && (
-                        <div className="absolute top-4 right-4">
-                          <span className="bg-red-600/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-                            {article.category}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Breaking Badge for first article */}
-                      {index === 0 && (
-                        <div className="absolute bottom-4 left-4">
-                          <span className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider animate-pulse">
-                            🔴 Breaking
-                          </span>
-                        </div>
-                      )}
+                    ) : null}
+                    
+                    {/* Fallback placeholder */}
+                    <div 
+                      className={`fallback-placeholder absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center ${imageUrl ? 'hidden' : 'flex'}`}
+                    >
+                      <div className="text-center">
+                        <ImageIcon className="text-gray-500 mb-2 mx-auto" size={48} />
+                        <p className="text-gray-400 text-sm">No Image Available</p>
+                      </div>
                     </div>
-                  )}
+                    
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                    
+                    {/* Category Badge */}
+                    {article.category && (
+                      <div className="absolute top-4 right-4">
+                        <span className="bg-red-600/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                          {article.category}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Breaking Badge for first article */}
+                    {index === 0 && (
+                      <div className="absolute bottom-4 left-4">
+                        <span className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider animate-pulse">
+                          🔴 Breaking
+                        </span>
+                      </div>
+                    )}
+                  </div>
                   
                   {/* Content Section */}
                   <div className="p-6">
@@ -247,7 +314,6 @@ const LatestNews = ({ onNavigateToArticle }) => {
                           <Calendar size={14} />
                           <span>{formatDate(article.$createdAt)}</span>
                         </div>
-                       
                       </div>
                       {article.author && (
                         <div className="flex items-center gap-1 text-red-400">
@@ -302,7 +368,6 @@ const LatestNews = ({ onNavigateToArticle }) => {
                           className="transform group-hover/btn:translate-x-1 transition-transform" 
                         />
                       </button>
-                     
                     </div>
                   </div>
                 </article>
@@ -311,8 +376,6 @@ const LatestNews = ({ onNavigateToArticle }) => {
           </div>
         )}
       </div>
-      
-      
     </div>
   );
 };

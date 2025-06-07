@@ -1,5 +1,5 @@
 import React from 'react'
-import logo from '../assets/Logo.png'
+import logo from '../assets/luff.png'
  function Logo({width = '120px', height = '120px', }) {
     return (
         <>

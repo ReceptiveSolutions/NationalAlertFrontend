@@ -10,6 +10,7 @@ import ShareMarket from './pages/bsuinesspage';
 import ArticleDetailPage from './pages/newsdeatil';
 import HealthPage from './pages/healthpage';
 import LatestNews from './pages/latestpage'
+import ReportCrimeForm from './pages/reportCrimeForm';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -24,6 +25,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="business" element={<ShareMarket />} />
           <Route path="health" element={<HealthPage />} />
           <Route path="latest" element={<LatestNews/>} />
+          <Route path="crimeReportForm" element={<ReportCrimeForm/>}/>
         </Route>
       </Routes>
     </BrowserRouter>

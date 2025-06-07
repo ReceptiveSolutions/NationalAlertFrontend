@@ -1,1 +1,20 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Global font settings */
+body {
+  font-family: 'Lora', 'Georgia', serif;
+  line-height: 1.6;
+}
+
+/* Headlines */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+}
+
+/* Navigation and UI elements */
+nav, button, .btn {
+  font-family: 'Inter', sans-serif;
+}
