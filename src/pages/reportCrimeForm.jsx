@@ -27,35 +27,45 @@ function ReportCrimeForm() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        console.log('Form submit triggered');
+        console.log('Form data:', formData);
+        
         setIsSubmitting(true);
         setSubmitMessage('');
 
-        // Basic validation
-        if (!formData.fullName || !formData.contactNumber || !formData.email || !formData.description) {
-            setSubmitMessage('Please fill in all required fields.');
-            setIsSubmitting(false);
-            return;
-        }
-
-        // Email validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(formData.email)) {
-            setSubmitMessage('Please enter a valid email address.');
-            setIsSubmitting(false);
-            return;
-        }
-
-        // Phone number validation (basic)
-        const phoneRegex = /^[\+]?[\d\s\-\(\)]{10,}$/;
-        if (!phoneRegex.test(formData.contactNumber)) {
-            setSubmitMessage('Please enter a valid contact number.');
-            setIsSubmitting(false);
-            return;
-        }
-
         try {
+            // Basic validation
+            if (!formData.fullName || !formData.contactNumber || !formData.email || !formData.description) {
+                console.log('Validation failed: missing fields');
+                setSubmitMessage('Please fill in all required fields.');
+                setIsSubmitting(false);
+                return;
+            }
+
+            // Email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(formData.email)) {
+                console.log('Validation failed: invalid email');
+                setSubmitMessage('Please enter a valid email address.');
+                setIsSubmitting(false);
+                return;
+            }
+
+            // Phone number validation (basic)
+            const phoneRegex = /^[\+]?[\d\s\-\(\)]{10,}$/;
+            if (!phoneRegex.test(formData.contactNumber)) {
+                console.log('Validation failed: invalid phone');
+                setSubmitMessage('Please enter a valid contact number.');
+                setIsSubmitting(false);
+                return;
+            }
+
             // Check if environment variables are loaded
             if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+                console.error('EmailJS configuration missing');
+                console.log('EMAILJS_SERVICE_ID:', EMAILJS_SERVICE_ID);
+                console.log('EMAILJS_TEMPLATE_ID:', EMAILJS_TEMPLATE_ID);
+                console.log('EMAILJS_PUBLIC_KEY:', EMAILJS_PUBLIC_KEY);
                 throw new Error('EmailJS configuration missing. Please check environment variables.');
             }
 
@@ -79,6 +89,8 @@ function ReportCrimeForm() {
             };
 
             console.log('Sending email with params:', templateParams);
+            console.log('Using EmailJS Service ID:', EMAILJS_SERVICE_ID);
+            console.log('Using EmailJS Template ID:', EMAILJS_TEMPLATE_ID);
 
             // Send email using EmailJS
             const response = await emailjs.send(
@@ -101,51 +113,64 @@ function ReportCrimeForm() {
                     description: ''
                 });
             } else {
-                throw new Error('Failed to send email');
+                throw new Error('Failed to send email - Status: ' + response.status);
             }
             
         } catch (error) {
             console.error('EmailJS Error:', error);
+            console.error('Full error object:', JSON.stringify(error, null, 2));
             
             // More specific error messages
             if (error.message.includes('configuration')) {
                 setSubmitMessage('❌ System configuration error. Please contact support.');
             } else if (error.message.includes('network') || error.message.includes('fetch')) {
                 setSubmitMessage('❌ Network error. Please check your internet connection and try again.');
+            } else if (error.status === 400) {
+                setSubmitMessage('❌ Invalid request. Please check your form data and try again.');
+            } else if (error.status === 401) {
+                setSubmitMessage('❌ Authentication error. Please contact support.');
+            } else if (error.status === 403) {
+                setSubmitMessage('❌ Permission denied. Please contact support.');
+            } else if (error.status === 404) {
+                setSubmitMessage('❌ Service not found. Please contact support.');
             } else {
-                setSubmitMessage('❌ Failed to submit the report. Please try again or contact us directly at rishabhreceptive@gmail.com');
+                setSubmitMessage('❌ Failed to submit the report. Error: ' + error.message + '. Please try again or contact us directly at rishabhreceptive@gmail.com');
             }
         } finally {
+            console.log('Form submission completed');
             setIsSubmitting(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
-            <div className="max-w-md mx-auto sm:max-w-lg lg:max-w-2xl">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 py-8 px-4">
+            <div className="max-w-2xl mx-auto">
                 {/* Header */}
-                <div className="text-center mb-6 sm:mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
-                        <span className="text-2xl">🚨</span>
+                <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-100">
+                    <div className="text-center">
+                        <div className="bg-red-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <span className="text-3xl">🚨</span>
+                        </div>
+                        <h1 className="text-3xl sm:text-4xl font-bold text-red-600 mb-3">
+                            Crime Report Form
+                        </h1>
+                        <p className="text-gray-600 text-base sm:text-lg leading-relaxed">
+                            Please provide accurate information to help us process your report effectively.
+                            All information will be kept confidential.
+                        </p>
                     </div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                        Crime Report Form
-                    </h1>
-                    <p className="text-sm sm:text-base text-gray-600">
-                        Please provide accurate information. All details will be kept confidential.
-                    </p>
                 </div>
 
                 {/* Form */}
-                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 lg:p-8">
-                    <div className="space-y-4 sm:space-y-6">
+                <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                    <div className="space-y-8">
                         {/* Full Name */}
-                        <div>
+                        <div className="space-y-2">
                             <label 
                                 htmlFor="fullName" 
-                                className="block text-sm font-medium text-gray-700 mb-2"
+                                className="block text-sm font-semibold text-gray-700"
                             >
-                                Full Name <span className="text-red-500">*</span>
+                                Your Full Name <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="text"
@@ -154,18 +179,18 @@ function ReportCrimeForm() {
                                 value={formData.fullName}
                                 onChange={handleInputChange}
                                 required
-                                className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 bg-gray-50 focus:bg-white"
                                 placeholder="Enter your full name"
                             />
                         </div>
 
                         {/* Contact Number */}
-                        <div>
+                        <div className="space-y-2">
                             <label 
                                 htmlFor="contactNumber" 
-                                className="block text-sm font-medium text-gray-700 mb-2"
+                                className="block text-sm font-semibold text-gray-700"
                             >
-                                Contact Number <span className="text-red-500">*</span>
+                                Your Contact Number <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="tel"
@@ -174,18 +199,18 @@ function ReportCrimeForm() {
                                 value={formData.contactNumber}
                                 onChange={handleInputChange}
                                 required
-                                className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
-                                placeholder="Enter your contact number"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 bg-gray-50 focus:bg-white"
+                                placeholder="Enter your contact number with country code"
                             />
                         </div>
 
                         {/* Email */}
-                        <div>
+                        <div className="space-y-2">
                             <label 
                                 htmlFor="email" 
-                                className="block text-sm font-medium text-gray-700 mb-2"
+                                className="block text-sm font-semibold text-gray-700"
                             >
-                                Email Address <span className="text-red-500">*</span>
+                                Your Email Address <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="email"
@@ -194,91 +219,95 @@ function ReportCrimeForm() {
                                 value={formData.email}
                                 onChange={handleInputChange}
                                 required
-                                className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 bg-gray-50 focus:bg-white"
                                 placeholder="Enter your email address"
                             />
                         </div>
 
                         {/* Description */}
-                        <div>
+                        <div className="space-y-2">
                             <label 
                                 htmlFor="description" 
-                                className="block text-sm font-medium text-gray-700 mb-2"
+                                className="block text-sm font-semibold text-gray-700"
                             >
-                                Describe the Crime/Fraud <span className="text-red-500">*</span>
+                                Describe the Fraud/Crime in Detail <span className="text-red-500">*</span>
                             </label>
                             <textarea
                                 id="description"
                                 name="description"
-                                rows="6"
+                                rows="8"
                                 value={formData.description}
                                 onChange={handleInputChange}
                                 required
-                                className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors resize-vertical"
-                                placeholder="Please provide detailed information including date, time, location, people involved, and any other relevant details..."
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 resize-vertical bg-gray-50 focus:bg-white"
+                                placeholder="Please provide detailed information about the fraud or crime, including:
+• Date and time when it occurred
+• Location where it happened
+• People involved (if known)
+• What exactly happened
+• Any financial losses or damages
+• Any evidence you have
+• Any other relevant details that might help with the investigation"
                             />
                         </div>
 
                         {/* Submit Button */}
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="w-full bg-red-600 text-white py-3 px-4 rounded-md font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            {isSubmitting ? (
-                                <div className="flex items-center justify-center space-x-2">
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    <span>Submitting...</span>
-                                </div>
-                            ) : (
-                                'Submit Report'
-                            )}
-                        </button>
+                        <div className="pt-6">
+                            <button
+                                type="button"
+                                disabled={isSubmitting}
+                                onClick={handleSubmit}
+                                className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-red-700 hover:to-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                {isSubmitting ? (
+                                    <div className="flex items-center justify-center space-x-2">
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Submitting Report...</span>
+                                    </div>
+                                ) : (
+                                    'Submit Crime Report'
+                                )}
+                            </button>
+                        </div>
 
                         {/* Submit Message */}
                         {submitMessage && (
-                            <div className={`p-3 sm:p-4 rounded-md text-sm ${
+                            <div className={`p-4 rounded-xl border-l-4 ${
                                 submitMessage.includes('❌') || submitMessage.includes('Failed') || submitMessage.includes('fill') || submitMessage.includes('valid')
-                                    ? 'bg-red-50 text-red-700 border border-red-200'
-                                    : 'bg-green-50 text-green-700 border border-green-200'
+                                    ? 'bg-red-50 text-red-700 border-red-400'
+                                    : 'bg-green-50 text-green-700 border-green-400'
                             }`}>
-                                <p>{submitMessage}</p>
+                                <p className="text-sm font-medium leading-relaxed">{submitMessage}</p>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Footer Notes */}
-                <div className="mt-6 space-y-4">
-                    {/* Security Note */}
-                    {/* <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                        <div className="flex items-start space-x-3">
+                {/* Footer Note */}
+                <div className="mt-8 text-center bg-blue-50 rounded-2xl p-6 border border-blue-100">
+                    <div className="flex items-center justify-center mb-3">
+                        <div className="bg-blue-100 w-10 h-10 rounded-full flex items-center justify-center">
                             <span className="text-blue-600 text-lg">🛡️</span>
-                            <div>
-                                <p className="text-sm font-medium text-blue-900">Your Privacy Matters</p>
-                                <p className="text-xs text-blue-700 mt-1">
-                                    All information is confidential. We'll contact you within 24 hours.
-                                </p>
-                            </div>
-                        </div>
-                    </div> */}
-
-                    {/* Emergency Note */}
-                    <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                        <div className="flex items-start space-x-3">
-                            <span className="text-yellow-600 text-lg">⚠️</span>
-                            <div>
-                                <p className="text-sm font-medium text-yellow-900">Emergency?</p>
-                                <p className="text-xs text-yellow-700 mt-1">
-                                    If this is an ongoing emergency, please call <strong>100</strong> immediately.
-                                </p>
-                            </div>
                         </div>
                     </div>
+                    <p className="text-sm text-blue-800 font-medium mb-2">
+                        Your Privacy & Security Matter
+                    </p>
+                    <p className="text-xs text-blue-600 leading-relaxed">
+                        Your report will be forwarded to the appropriate authorities with utmost confidentiality. 
+                        Please ensure all information is accurate and truthful. We will contact you within 24 hours for follow-up.
+                    </p>
+                </div>
+
+                {/* Emergency Contact */}
+                <div className="mt-6 text-center bg-yellow-50 rounded-2xl p-4 border border-yellow-200">
+                    <p className="text-sm text-yellow-800">
+                        <strong>Emergency?</strong> If this is an ongoing emergency, please call <strong>100</strong> immediately.
+                    </p>
                 </div>
             </div>
         </div>
     );
 }
 
-export default ReportCrimeForm;
+export default ReportCrimeForm
