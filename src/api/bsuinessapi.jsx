@@ -60,7 +60,7 @@ const ShareMarketApi = ({ onDataLoaded }) => {
     }
   };
 
-  const fetchShareMarketNews = async (retryCount = 0) => {
+   const fetchShareMarketNews = async (retryCount = 0) => {
     try {
       // First check if we have valid cached data
       const cachedData = getCachedData();
@@ -72,22 +72,24 @@ const ShareMarketApi = ({ onDataLoaded }) => {
       
       setIsRetrying(retryCount > 0);
       
-      // Set a timeout to avoid API rate limiting issues
-      const response = await fetch(
-        `https://newsdata.io/api/1/news?apikey=${apiKey}&category=business&q=stocks OR market OR finance OR economy&language=en`
-      );
+      // Call YOUR backend endpoint instead of the News API directly
+      const response = await fetch('http://localhost:5000/api/news');
       
       if (!response.ok) {
-        throw new Error(`API returned status ${response.status}`);
+        throw new Error(`Backend returned status ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('✅ Share Market API Response:', data);
+      console.log('✅ Backend API Response:', data);
 
-      if (Array.isArray(data.results) && data.results.length > 0) {
+      // Check if we got data from cache or fresh
+      const articles = data.fromCache ? data.data : data.data;
+
+      if (Array.isArray(articles) && articles.length > 0) {
         const marketCategories = ['Stocks', 'Cryptocurrency', 'Commodities', 'Forex', 'IPO', 'Mutual Funds'];
         
-        const filteredArticles = data.results.map((item, index) => {
+        // Process the articles similar to before
+        const filteredArticles = articles.map((item, index) => {
           // Determine the most appropriate subcategory based on content
           let subcategory = 'Stocks';
           const content = (item.title + ' ' + (item.description || '')).toLowerCase();
@@ -110,12 +112,12 @@ const ShareMarketApi = ({ onDataLoaded }) => {
           const stockChange = isPositive ? `+${changePercent}%` : `-${changePercent}%`;
           
           return {
-            id: index,
+            id: item.article_id || index,
             title: item.title || 'No title available',
             summary: item.description || 'No description available',
             image: item.image_url || `https://source.unsplash.com/random/800x500/?finance,${subcategory.toLowerCase()}`,
             date: item.pubDate ? new Date(item.pubDate).toLocaleDateString() : new Date().toLocaleDateString(),
-            category: 'Business',
+            category: item.category || 'Business',
             subcategory: subcategory,
             stockPrice: `$${Math.floor(Math.random() * 1000) + 10}.${Math.floor(Math.random() * 99)}`,
             stockChange: stockChange,
@@ -163,18 +165,13 @@ const ShareMarketApi = ({ onDataLoaded }) => {
   };
 
   useEffect(() => {
-    if (apiKey) {
-      fetchShareMarketNews();
-    } else {
-      console.error('❌ API key is missing. Please set VITE_NEWS1_KEY in your .env file.');
-      onDataLoaded(generateFallbackData());
-    }
+    fetchShareMarketNews();
     
     // Clean up function
     return () => {
       setIsRetrying(false);
     };
-  }, [apiKey]);
+  }, []);
 
   // Show a minimal loading indicator if we're retrying
   return isRetrying ? (

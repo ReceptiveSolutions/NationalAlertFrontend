@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
 const SportsApi = ({ onDataLoaded }) => {
-  const apiKey = import.meta.env.VITE_NEWS1_KEY;
   const [isRetrying, setIsRetrying] = useState(false);
   
   // Generate fallback data if API fails
@@ -43,7 +42,7 @@ const SportsApi = ({ onDataLoaded }) => {
     }
     return null;
   };
-  
+   
   // Save data to cache
   const cacheData = (data) => {
     try {
@@ -52,7 +51,7 @@ const SportsApi = ({ onDataLoaded }) => {
     } catch (e) {
       console.error('❌ Failed to cache sports news data:', e);
     }
-  };
+  }; 
 
   const fetchSportsNews = async (retryCount = 0) => {
     try {
@@ -66,21 +65,24 @@ const SportsApi = ({ onDataLoaded }) => {
       
       setIsRetrying(retryCount > 0);
       
-      // Set a timeout to avoid API rate limiting issues
+      // Fetch from your backend API
       const response = await fetch(
-        `https://newsdata.io/api/1/news?apikey=${apiKey}&country=in&language=en&category=sports`
+        `http://localhost:5000/api/news/sports`
       );
       
       if (!response.ok) {
-        throw new Error(`API returned status ${response.status}`);
+        throw new Error(`Backend returned status ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('✅ Sports API Response:', data);
+      console.log('✅ Sports Backend Response:', data);
 
-      if (Array.isArray(data.results) && data.results.length > 0) {
-        const filteredArticles = data.results.map((item, index) => ({
-          id: index,
+      // Handle both cached and fresh responses from backend
+      const articles = data.data || [];
+      
+      if (Array.isArray(articles) && articles.length > 0) {
+        const filteredArticles = articles.map((item, index) => ({
+          id: item.article_id || index,
           title: item.title || 'No title available',
           summary: item.description || 'No description available',
           image: item.image_url || `https://source.unsplash.com/random/800x500/?sports`,
@@ -129,18 +131,13 @@ const SportsApi = ({ onDataLoaded }) => {
   };
 
   useEffect(() => {
-    if (apiKey) {
-      fetchSportsNews();
-    } else {
-      console.error('❌ API key is missing. Please set VITE_NEWS1_KEY in your .env file.');
-      onDataLoaded(generateFallbackData());
-    }
+    fetchSportsNews();
     
     // Clean up function
     return () => {
       setIsRetrying(false);
     };
-  }, [apiKey]);
+  }, []); // No dependencies since sports is static
 
   // Show a minimal loading indicator if we're retrying
   return isRetrying ? (

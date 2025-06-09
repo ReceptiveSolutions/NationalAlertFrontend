@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
 const EntertainmentApi = ({ onDataLoaded }) => {
-  const apiKey = import.meta.env.VITE_NEWS1_KEY;
   const [isRetrying, setIsRetrying] = useState(false);
   
   // Generate fallback data if API fails
@@ -43,7 +42,7 @@ const EntertainmentApi = ({ onDataLoaded }) => {
     }
     return null;
   };
-  
+   
   // Save data to cache
   const cacheData = (data) => {
     try {
@@ -52,7 +51,7 @@ const EntertainmentApi = ({ onDataLoaded }) => {
     } catch (e) {
       console.error('❌ Failed to cache entertainment news data:', e);
     }
-  };
+  }; 
 
   const fetchEntertainmentNews = async (retryCount = 0) => {
     try {
@@ -66,24 +65,27 @@ const EntertainmentApi = ({ onDataLoaded }) => {
       
       setIsRetrying(retryCount > 0);
       
-      // Set a timeout to avoid API rate limiting issues
+      // Fetch from your backend API
       const response = await fetch(
-        `https://newsdata.io/api/1/news?apikey=${apiKey}&country=in&language=en&category=entertainment`
+        `http://localhost:5000/api/news/entertainment`
       );
       
       if (!response.ok) {
-        throw new Error(`API returned status ${response.status}`);
+        throw new Error(`Backend returned status ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('✅ Entertainment API Response:', data);
+      console.log('✅ Entertainment Backend Response:', data);
 
-      if (Array.isArray(data.results) && data.results.length > 0) {
-        const filteredArticles = data.results.map((item, index) => ({
-          id: index,
+      // Handle both cached and fresh responses from backend
+      const articles = data.data || [];
+      
+      if (Array.isArray(articles) && articles.length > 0) {
+        const filteredArticles = articles.map((item, index) => ({
+          id: item.article_id || index,
           title: item.title || 'No title available',
           summary: item.description || 'No description available',
-          image: item.image_url || `https://source.unsplash.com/random/800x500/?movie,film`,
+          image: item.image_url || `https://source.unsplash.com/random/800x500/?entertainment,movie`,
           date: item.pubDate ? new Date(item.pubDate).toLocaleDateString() : new Date().toLocaleDateString(),
           category: 'Entertainment',
           subcategory: item.keywords ? item.keywords[0] : 'Film & TV'
@@ -129,18 +131,13 @@ const EntertainmentApi = ({ onDataLoaded }) => {
   };
 
   useEffect(() => {
-    if (apiKey) {
-      fetchEntertainmentNews();
-    } else {
-      console.error('❌ API key is missing. Please set VITE_NEWS1_KEY in your .env file.');
-      onDataLoaded(generateFallbackData());
-    }
+    fetchEntertainmentNews();
     
     // Clean up function
     return () => {
       setIsRetrying(false);
     };
-  }, [apiKey]);
+  }, []); // No dependencies since entertainment is static
 
   // Show a minimal loading indicator if we're retrying
   return isRetrying ? (

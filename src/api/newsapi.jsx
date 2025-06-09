@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const Newsapi = ({ onDataLoaded }) => {
-  const apiKey = import.meta.env.VITE_NEWS1_KEY;
+const Newsapi = ({ onDataLoaded, category = 'general' }) => {
   const [isRetrying, setIsRetrying] = useState(false);
   
   // Generate fallback data if API fails
@@ -25,8 +24,8 @@ const Newsapi = ({ onDataLoaded }) => {
   
   // Check local storage for cached data
   const getCachedData = () => {
-    const cachedDataStr = localStorage.getItem('newsData');
-    const cachedTimestamp = localStorage.getItem('newsDataTimestamp');
+    const cachedDataStr = localStorage.getItem(`newsData_${category}`);
+    const cachedTimestamp = localStorage.getItem(`newsDataTimestamp_${category}`);
     
     if (cachedDataStr && cachedTimestamp) {
       // Check if cache is still valid (less than 15 minutes old)
@@ -45,8 +44,8 @@ const Newsapi = ({ onDataLoaded }) => {
   // Save data to cache
   const cacheData = (data) => {
     try {
-      localStorage.setItem('newsData', JSON.stringify(data));
-      localStorage.setItem('newsDataTimestamp', new Date().getTime().toString());
+      localStorage.setItem(`newsData_${category}`, JSON.stringify(data));
+      localStorage.setItem(`newsDataTimestamp_${category}`, new Date().getTime().toString());
     } catch (e) {
       console.error('❌ Failed to cache news data:', e);
     }
@@ -57,32 +56,36 @@ const Newsapi = ({ onDataLoaded }) => {
       // First check if we have valid cached data
       const cachedData = getCachedData();
       if (cachedData) {
-        console.log('✅ Using cached news data');
+        console.log('✅ Using cached news data for', category);
         onDataLoaded(cachedData);
         return;
       }
       
       setIsRetrying(retryCount > 0);
       
-      // Set a timeout to avoid API rate limiting issues
+      // Fetch from your backend API
       const response = await fetch(
-        `https://newsdata.io/api/1/news?apikey=${apiKey}&country=in&language=en`
+        `http://localhost:5000/api/news/${category}`
       );
       
       if (!response.ok) {
-        throw new Error(`API returned status ${response.status}`);
+        throw new Error(`Backend returned status ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('✅ API Response:', data);
+      console.log('✅ Backend Response:', data);
 
-      if (Array.isArray(data.results) && data.results.length > 0) {
-        const filteredArticles = data.results.map((item, index) => ({
-          id: index,
+      // Handle both cached and fresh responses from backend
+      const articles = data.data || [];
+      
+      if (Array.isArray(articles) && articles.length > 0) {
+        const filteredArticles = articles.map((item, index) => ({
+          id: item.article_id || index,
           title: item.title || 'No title available',
           summary: item.description || 'No description available',
-          image: item.image_url || `https://source.unsplash.com/random/800x500/?news`,
+          image: item.image_url || `https://source.unsplash.com/random/800x500/?${category}`,
           date: item.pubDate ? new Date(item.pubDate).toLocaleDateString() : new Date().toLocaleDateString(),
+          category: item.category || category
         }));
         
         // Cache the successful response
@@ -93,7 +96,7 @@ const Newsapi = ({ onDataLoaded }) => {
         throw new Error('No results found in the API response');
       }
     } catch (error) {
-      console.error(`❌ Failed to fetch news (attempt ${retryCount + 1}):`, error);
+      console.error(`❌ Failed to fetch ${category} news (attempt ${retryCount + 1}):`, error);
       
       // Retry logic - up to 2 retries with exponential backoff
       if (retryCount < 2) {
@@ -105,7 +108,7 @@ const Newsapi = ({ onDataLoaded }) => {
         }, delay);
       } else {
         // After all retries failed, check for old cache as last resort
-        const oldCache = localStorage.getItem('newsData');
+        const oldCache = localStorage.getItem(`newsData_${category}`);
         if (oldCache) {
           try {
             console.log('⚠️ Using expired cache as fallback');
@@ -125,18 +128,13 @@ const Newsapi = ({ onDataLoaded }) => {
   };
 
   useEffect(() => {
-    if (apiKey) {
-      fetchNews();
-    } else {
-      console.error('❌ API key is missing. Please set VITE_NEWS1_KEY in your .env file.');
-      onDataLoaded(generateFallbackData());
-    }
+    fetchNews();
     
     // Clean up function
     return () => {
       setIsRetrying(false);
     };
-  }, [apiKey]);
+  }, [category]); // Re-fetch when category changes
 
   // Show a minimal loading indicator if we're retrying
   return isRetrying ? (
