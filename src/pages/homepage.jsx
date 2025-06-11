@@ -1,15 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiTrendingUp, FiChevronDown, FiChevronUp, FiExternalLink } from 'react-icons/fi';
 import Newsapi from '../api/newsapi';
+import BBCNewsFetcher from '../Rss/BBCNews'; // Your RSS component
 
 const NewsHomepage = () => {
   const [featuredNews, setFeaturedNews] = useState([]);
   const [latestNews, setLatestNews] = useState([]);
   const [trendingNews, setTrendingNews] = useState([]);
+  const [rssNews, setRssNews] = useState([]); // New state for RSS data
+  const [apiNews, setApiNews] = useState([]); // Store API data separately
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
   const [error, setError] = useState(null);
+  const [apiDataLoaded, setApiDataLoaded] = useState(false);
+  const [rssDataFetched, setRssDataFetched] = useState(false);
+  const [rssCurrentIndex, setRssCurrentIndex] = useState(0); // Track RSS articles shown
   
   // Separate state objects for different sections
   const [expandedFeaturedArticles, setExpandedFeaturedArticles] = useState({});
@@ -17,9 +24,59 @@ const NewsHomepage = () => {
   const [expandedLatestArticles, setExpandedLatestArticles] = useState({});
   
   const [displayCount, setDisplayCount] = useState(6);
+  const [additionalRssArticles, setAdditionalRssArticles] = useState([]); // Only RSS articles for load more
   
-  // Add navigation hook for redirecting to detail page
   const navigate = useNavigate();
+
+  // Helper function to generate unique IDs to avoid conflicts
+  const generateUniqueId = (title, source, index) => {
+    return `${source}_${title.slice(0, 20).replace(/\s+/g, '_')}_${index}`;
+  };
+
+  // Helper function to check for duplicate articles
+  const isDuplicate = (newArticle, existingArticles) => {
+    return existingArticles.some(existing => {
+      // Check for similar titles (allowing for minor variations)
+      const titleSimilarity = similarity(
+        newArticle.title.toLowerCase().trim(),
+        existing.title.toLowerCase().trim()
+      );
+      return titleSimilarity > 0.8; // 80% similarity threshold
+    });
+  };
+
+  // Simple string similarity function
+  const similarity = (s1, s2) => {
+    const longer = s1.length > s2.length ? s1 : s2;
+    const shorter = s1.length > s2.length ? s2 : s1;
+    const editDistance = getEditDistance(longer, shorter);
+    if (longer.length === 0) return 1.0;
+    return (longer.length - editDistance) / longer.length;
+  };
+
+  // Levenshtein distance calculation
+  const getEditDistance = (s1, s2) => {
+    s1 = s1.toLowerCase();
+    s2 = s2.toLowerCase();
+    const costs = [];
+    for (let i = 0; i <= s2.length; i++) {
+      let lastValue = i;
+      for (let j = 0; j <= s1.length; j++) {
+        if (i === 0) {
+          costs[j] = j;
+        } else if (j > 0) {
+          let newValue = costs[j - 1];
+          if (s2.charAt(i - 1) !== s1.charAt(j - 1)) {
+            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+          }
+          costs[j - 1] = lastValue;
+          lastValue = newValue;
+        }
+      }
+      if (i > 0) costs[s1.length] = lastValue;
+    }
+    return costs[s1.length];
+  };
 
   // Helper function to check if article has more than 50 words
   const hasMoreThan50Words = (summary) => {
@@ -27,18 +84,143 @@ const NewsHomepage = () => {
     return wordCount > 50;
   };
 
-  // Toggle expanded state for an article in the featured section
+  // Process API data only
+  const processApiData = (apiData) => {
+    if (!apiData || apiData.length === 0) return [];
+    
+    return apiData.map((item, index) => ({
+      id: generateUniqueId(item.title || 'API Article', 'api', index),
+      title: item.title || 'No title available',
+      summary: item.summary || item.description || 'No description available',
+      image: item.image || `https://source.unsplash.com/800x500/?news,${index}`,
+      date: item.date || new Date().toLocaleDateString(),
+      category: determineCategory(item.title || '', index),
+      readTime: `${Math.max(1, Math.floor((item.summary?.length || item.description?.length || 0) / 200))} min read`,
+      author: item.author || 'News Staff',
+      isBreaking: index % 7 === 0,
+      source: 'api',
+      link: item.link || item.url || '',
+      content: index % 3 === 0 ? generateAdditionalContent() : []
+    }));
+  };
+
+  // Process RSS data only
+  const processRssData = (rssData) => {
+    if (!rssData || rssData.length === 0) return [];
+    
+    return rssData.map((item, index) => ({
+      id: generateUniqueId(item.title || 'RSS Article', 'rss', index),
+      title: item.title || 'No title available',
+      summary: item.summary || item.description || 'No description available',
+      image: item.image || `https://source.unsplash.com/800x500/?news,rss,${index}`,
+      date: item.date || new Date().toLocaleDateString(),
+      category: determineCategory(item.title || '', index),
+      readTime: `${Math.max(1, Math.floor((item.summary?.length || item.description?.length || 0) / 200))} min read`,
+      author: item.author || 'BBC News',
+      isBreaking: false,
+      source: 'rss',
+      link: item.link || '',
+      content: generateAdditionalContent()
+    }));
+  };
+
+  // Handle API data loading
+  const handleApiDataLoaded = (apiData) => {
+    try {
+      if (!apiData || apiData.length === 0) {
+        console.warn('No API data available');
+        setError('Unable to load news content from API');
+        setIsLoading(false);
+        return;
+      }
+
+      const processedApiData = processApiData(apiData);
+      setApiNews(processedApiData);
+      
+      // Set initial display data using only API data
+      setFeaturedNews(processedApiData.slice(0, 6));
+      setLatestNews(processedApiData.slice(6, Math.min(processedApiData.length, 30)));
+      
+      // Create trending news from API data
+      setTrendingNews(processedApiData.slice(0, 5).map((item, idx) => ({
+        ...item,
+        trend: idx % 2 === 0 ? 'up' : 'down'
+      })));
+      
+      setApiDataLoaded(true);
+      setError(null);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Error processing API data:', err);
+      setError('Unable to load news content from API');
+      setIsLoading(false);
+    }
+  };
+
+  // Handle RSS data loading (only called when Load More is clicked)
+  const handleRssDataLoaded = (rssData) => {
+    try {
+      if (!rssData || rssData.length === 0) {
+        console.warn('No RSS data available');
+        setIsLoadingMore(false);
+        return;
+      }
+
+      const processedRssData = processRssData(rssData);
+      setRssNews(processedRssData);
+      setRssDataFetched(true);
+      
+      // Add first 4 RSS articles to additional articles
+      const newRssArticles = processedRssData.slice(0, 4);
+      setAdditionalRssArticles(newRssArticles);
+      setRssCurrentIndex(4);
+      setIsLoadingMore(false);
+    } catch (err) {
+      console.error('Error processing RSS data:', err);
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Process combined data once both sources are loaded
+  const processCombinedData = (apiData, rssData) => {
+    // This function is no longer needed since we handle API and RSS separately
+  };
+
+  // Check if both data sources are loaded
+  useEffect(() => {
+    // Only check for API data loading since RSS is loaded on demand
+    if (apiDataLoaded) {
+      setIsLoading(false);
+    }
+  }, [apiDataLoaded]);
+
+  // Load more articles function - now fetches RSS data on demand
+  const loadMoreArticles = () => {
+    setIsLoadingMore(true);
+    
+    if (!rssDataFetched) {
+      // First time clicking Load More - fetch RSS data
+      // RSS component will be conditionally rendered to fetch data
+      setRssDataFetched(true);
+    } else {
+      // RSS data already fetched, load next 4 articles
+      const nextArticles = rssNews.slice(rssCurrentIndex, rssCurrentIndex + 4);
+      if (nextArticles.length > 0) {
+        setAdditionalRssArticles(prev => [...prev, ...nextArticles]);
+        setRssCurrentIndex(prev => prev + 4);
+      }
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Toggle functions remain the same but use the new ID system
   const toggleExpandFeatured = (article) => {
-    // Check if the description is more than 50 words
     const wordCount = article.summary ? article.summary.split(/\s+/).length : 0;
     
     if (wordCount > 50) {
-      // Store article data in localStorage for detail page to access
-      localStorage.setItem(`article_${article.id}`, JSON.stringify(article));
-      // Navigate to the detail page
-      navigate(`/article/${article.id}`);
+      // Use memory-based storage instead of localStorage
+      navigate(`/article/${article.id}`, { state: { article } });
     } else {
-      // For shorter articles, just toggle expansion in-place
       setExpandedFeaturedArticles(prev => ({
         ...prev,
         [article.id]: !prev[article.id]
@@ -46,18 +228,12 @@ const NewsHomepage = () => {
     }
   };
 
-  // Toggle expanded state for a trending article
   const toggleExpandTrending = (article) => {
-    // Check if the description is more than 50 words
     const wordCount = article.summary ? article.summary.split(/\s+/).length : 0;
     
     if (wordCount > 50) {
-      // Store article data in localStorage for detail page to access
-      localStorage.setItem(`article_${article.id}`, JSON.stringify(article));
-      // Navigate to the detail page
-      navigate(`/article/${article.id}`);
+      navigate(`/article/${article.id}`, { state: { article } });
     } else {
-      // For shorter articles, just toggle expansion in-place
       setExpandedTrendingArticles(prev => ({
         ...prev,
         [article.id]: !prev[article.id]
@@ -65,89 +241,17 @@ const NewsHomepage = () => {
     }
   };
 
-  // Toggle expanded state for a latest article
   const toggleExpandLatest = (article) => {
-    // Check if the description is more than 50 words
     const wordCount = article.summary ? article.summary.split(/\s+/).length : 0;
     
     if (wordCount > 50) {
-      // Store article data in localStorage for detail page to access
-      localStorage.setItem(`article_${article.id}`, JSON.stringify(article));
-      // Navigate to the detail page
-      navigate(`/article/${article.id}`);
+      navigate(`/article/${article.id}`, { state: { article } });
     } else {
-      // For shorter articles, just toggle expansion in-place
       setExpandedLatestArticles(prev => ({
         ...prev,
         [article.id]: !prev[article.id]
       }));
     }
-  };
-
-  // New function to load more articles
-  const loadMoreArticles = () => {
-    setDisplayCount(prevCount => prevCount + 4);
-  };
-
-  // This function handles loading states and error handling
-  const handleDataLoaded = (apiData) => {
-    try {
-      if (!apiData || apiData.length === 0) {
-        throw new Error('No news data available');
-      }
-
-      // Generate more simulated data if needed
-      let extendedData = [...apiData];
-      if (apiData.length < 30) {
-        // Create duplicates with slight modifications if not enough data
-        for (let i = 0; i < 20; i++) {
-          const originalItem = apiData[i % apiData.length];
-          extendedData.push({
-            ...originalItem,
-            title: originalItem.title ? `${originalItem.title} - Extended` : 'No title available',
-            summary: originalItem.summary ? `${originalItem.summary.substring(0, 50)}... Additional content for extended article. ${generateLongText(i)}` : 'No description available'
-          });
-        }
-      }
-      
-      const processedData = extendedData.map((item, index) => ({
-        id: index,
-        title: item.title || 'No title available',
-        summary: item.summary || 'No description available',
-        image: item.image || `No image available`,
-        date: item.date || new Date().toLocaleDateString(),
-        category: determineCategory(item.title || '', index),
-        readTime: `${Math.max(1, Math.floor((item.summary?.length || 0) / 200))} min read`,
-        author: item.author || 'News Staff',
-        isBreaking: index % 7 === 0,
-        // Add some mock content sections for the detail page
-        content: index % 3 === 0 ? generateAdditionalContent() : []
-      }));
-      
-      setFeaturedNews(processedData.slice(0, 6));
-      setLatestNews(processedData.slice(6, 30));
-      
-      // Create dynamic trending news
-      setTrendingNews(processedData.slice(0, 5).map((item, idx) => ({
-        ...item,
-        trend: idx % 2 === 0 ? 'up' : 'down'
-      })));
-      
-      setError(null);
-    } catch (err) {
-      console.error('Error processing news data:', err);
-      setError('Unable to load news content. Please try again later.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Generate long text for some articles to test the redirect functionality
-  const generateLongText = (index) => {
-    if (index % 2 === 0) {
-      return `This Article has a comprehensive analysis covering multiple aspects of the story. We delve deep into the background, examine various perspectives from experts, and provide detailed context that helps readers understand the full scope of the situation. Our reporting includes interviews with key stakeholders, analysis of recent developments, and insights into potential future implications. This extended coverage ensures that our readers have access to all the information they need to form their own informed opinions about this important topic.`;
-    }
-    return '';
   };
 
   // Generate additional content sections for detail pages
@@ -157,14 +261,13 @@ const NewsHomepage = () => {
 
   // Simple function to assign a general category
   const determineCategory = (title, index) => {
-    // Simplified to just return "news" as category type is being removed
     return "news";
   };
 
-  // Custom loading component for better UX
+  // Loading skeleton component
   const LoadingSkeleton = () => (
     <div className="bg-gray-50 min-h-screen">
-      <div className="bg-gary-100 text-gary-100 py-10 px-6 lg:px-10">
+      <div className="bg-gray-100 text-gray-100 py-10 px-6 lg:px-10">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6 animate-pulse">
             <div className="h-4 bg-white w-32 mb-2 rounded"></div>
@@ -181,12 +284,10 @@ const NewsHomepage = () => {
                 <div className="relative animate-pulse">
                   <div className={`w-full ${index < 2 ? 'h-72' : 'h-40'} bg-gray-700`}></div>
                 </div>
-
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-2 animate-pulse">
                     <div className="h-3 bg-gray-100 w-16 rounded"></div>
                   </div>
-                  
                   <div className="h-5 bg-gray-100 w-3/4 mb-2 rounded animate-pulse"></div>
                   <div className="h-3 bg-gray-600 w-full mb-1 rounded animate-pulse"></div>
                   <div className="h-3 bg-gray-600 w-2/3 mb-3 rounded animate-pulse"></div>
@@ -222,7 +323,13 @@ const NewsHomepage = () => {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      <Newsapi onDataLoaded={handleDataLoaded} />
+      {/* Load only API data initially */}
+      <Newsapi onDataLoaded={handleApiDataLoaded} />
+      
+      {/* Conditionally load RSS data only when needed */}
+      {rssDataFetched && !rssNews.length && (
+        <BBCNewsFetcher onDataLoaded={handleRssDataLoaded} />
+      )}
 
       {isLoading ? (
         <LoadingSkeleton />
@@ -264,6 +371,10 @@ const NewsHomepage = () => {
                             BREAKING
                           </div>
                         )}
+                        {/* Source badge */}
+                        {/* <div className="absolute top-0 right-0 bg-black bg-opacity-50 text-white px-3 py-1 text-xs font-bold">
+                          API
+                        </div> */}
                       </div>
 
                       <div className="p-3 sm:p-4">
@@ -352,13 +463,13 @@ const NewsHomepage = () => {
                 </div>
               </div>
 
-              {/*  Important Latest News Section */}
+              {/* Latest News Section */}
               <div className="order-1 lg:order-2 lg:col-span-2">
                 <div className="space-y-4 sm:space-y-6">
                   {latestNews.slice(0, displayCount).map(article => (
                     <div key={article.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
                       <div className="flex flex-col sm:flex-row">
-                        <div className="flex-shrink-0 w-full sm:w-32 md:w-48 h-48 sm:h-32 md:h-auto overflow-hidden">
+                        <div className="flex-shrink-0 w-full sm:w-32 md:w-48 h-48 sm:h-32 md:h-auto overflow-hidden relative">
                           <img 
                             className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
                             src={article.image} 
@@ -368,6 +479,10 @@ const NewsHomepage = () => {
                               e.target.alt = "News placeholder image";
                             }}
                           />
+                          {/* Source badge */}
+                          {/* <div className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 text-xs rounded">
+                            API
+                          </div> */}
                         </div>
                         <div className="p-4 sm:p-4 md:p-6 flex-1 min-w-0">
                           <div className="mb-2">
@@ -397,16 +512,88 @@ const NewsHomepage = () => {
                     </div>
                   ))}
                   
+                  {/* RSS Articles - Only shown after Load More is clicked */}
+                  {additionalRssArticles.map(article => (
+                    <div key={article.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 ">
+                      <div className="flex flex-col sm:flex-row">
+                        <div className="flex-shrink-0 w-full sm:w-32 md:w-48 h-48 sm:h-32 md:h-auto overflow-hidden relative">
+                          <img 
+                            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
+                            src={article.image} 
+                            alt={`News image: ${article.title}`}
+                            onError={(e) => {
+                              e.target.src = `https://source.unsplash.com/random/300x200/?news,${article.id}`;
+                              e.target.alt = "News placeholder image";
+                            }}
+                          />
+                          RSS Source badge
+                          {/* <div className="absolute bottom-2 left-2 bg-blue-600 bg-opacity-90 text-white px-2 py-1 text-xs rounded font-bold">
+                            RSS
+                          </div> */}
+                        </div>
+                        <div className="p-4 sm:p-4 md:p-6 flex-1 min-w-0">
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="text-xs text-gray-500">{article.date}</span>
+                            {/* <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
+                              {article.author}
+                            </span> */}
+                          </div>
+                          <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 cursor-pointer transition-colors duration-200 line-clamp-2">{article.title}</h3>
+                          
+                          <div className="text-sm sm:text-base text-gray-600 mb-4 overflow-hidden transition-all duration-300" style={{maxHeight: expandedLatestArticles[article.id] ? '1000px' : '3rem'}}>
+                            <p className={expandedLatestArticles[article.id] ? '' : 'line-clamp-2'}>{article.summary}</p>
+                          </div>
+                          
+                          <button 
+                            onClick={() => toggleExpandLatest(article)}
+                            className="text-red-600  text-sm font-medium flex items-center transition-colors duration-200"
+                            aria-expanded={expandedLatestArticles[article.id] ? "true" : "false"}
+                          >
+                            {hasMoreThan50Words(article.summary) ? (
+                              <>View full article <FiExternalLink className="ml-1" size={14} /></>
+                            ) : expandedLatestArticles[article.id] ? (
+                              <>Read less <FiChevronUp className="ml-1" size={14} /></>
+                            ) : (
+                              <>Read more <FiChevronDown className="ml-1" size={14} /></>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
                   {/* Load More Button */}
-                  <div className="flex justify-center mt-6 sm:mt-8">
-                    <button 
-                      onClick={loadMoreArticles}
-                      className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 sm:py-3 px-4 sm:px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 flex items-center text-sm sm:text-base"
-                    >
-                      Load More News
-                      <span className="ml-2 text-lg">→</span>
-                    </button>
-                  </div>
+                  {(!rssDataFetched || (rssNews.length > 0 && rssCurrentIndex < rssNews.length)) && (
+                    <div className="flex justify-center mt-6 sm:mt-8">
+                      <button 
+                        onClick={loadMoreArticles}
+                        disabled={isLoadingMore}
+                        className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-medium py-2 sm:py-3 px-4 sm:px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 flex items-center text-sm sm:text-base"
+                      >
+                        {isLoadingMore ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            {!rssDataFetched ? 'Loading RSS News...' : 'Loading More...'}
+                          </>
+                        ) : (
+                          <>
+                            {!rssDataFetched ? 'Load More News' : 'Load More RSS News'}
+                            <span className="ml-2 text-lg">→</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* End of articles message */}
+                  {rssDataFetched && rssCurrentIndex >= rssNews.length && (
+                    <div className="text-center mt-6 sm:mt-8 py-4">
+                      <p className="text-gray-600">You've reached the end of available articles.</p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Showing {latestNews.length} API articles + {additionalRssArticles.length} RSS articles
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

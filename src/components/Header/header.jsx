@@ -57,7 +57,7 @@ function Header() {
                         {/* Submit News Button - Top Right */}
                         <NavLink to="/crimeReportForm">
                             <button className="bg-white text-red-600 hover:bg-gray-100 px-2 py-1 sm:px-3 sm:py-2 rounded-md font-medium text-xs sm:text-sm transition-all duration-200 hover:shadow-md">
-                                <span className="hidden sm:inline">Submit News</span>
+                                <span className="hidden sm:inline">Report Crime</span>
                                 <span className="sm:hidden">Submit</span>
                             </button>
                         </NavLink>

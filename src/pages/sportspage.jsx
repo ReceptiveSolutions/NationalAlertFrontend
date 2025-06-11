@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SportsApi from '../api/sportsnews';
+import { Newspaper } from 'lucide-react';
 
 const SportsPage = () => {
   const navigate = useNavigate();
@@ -103,11 +104,16 @@ const SportsPage = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-        <div className="w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-lg font-medium text-gray-800">Loading sports news...</p>
-        <SportsApi onDataLoaded={handleDataLoaded} />
-      </div>
+      <div className="min-h-screen  flex items-center justify-center">
+          <div className="text-center">
+            <div className="relative mb-8">
+              <div className="w-20 h-20 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin mx-auto"></div>
+              <Newspaper className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-red-500" size={32} />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Loading Latest News</h2>
+            <p className="text-gray-400">Fetching the most recent updates...</p>
+          </div>
+        </div>
     );
   }
 
@@ -341,11 +347,11 @@ const SportsPage = () => {
                       e.target.src = `https://source.unsplash.com/random/300x200/?sports,${news.subcategory}`;
                     }}
                   />
-                  <div className="absolute top-0 left-0 m-2">
+                  {/* <div className="absolute top-0 left-0 m-2">
                     <span className="bg-red-600 text-white text-xs px-2 py-1 rounded-sm">
                       {news.subcategory}
                     </span>
-                  </div>
+                  </div> */}
                 </div>
                 <div className="p-3 sm:p-4 flex flex-col flex-grow">
                   <div className="flex items-center text-gray-500 text-xs mb-2">

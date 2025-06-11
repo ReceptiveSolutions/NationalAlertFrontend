@@ -26,13 +26,15 @@ function Footer() {
                     </div>
 
                     {/* Submit Button - Centered */}
+                    <NavLink to="/crimeReportForm">
                     <div className="my-4 md:my-0">
-                        <a href="mailto:test@gmail.com">
+                        
                         <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium transition-colors">
-                            Submit Your News
+                            Report Crime
                         </button>
-                        </a>
+                       
                     </div>
+                    </NavLink>
 
                     {/* Social Icons */}
                     <div className="flex space-x-6 mt-4 md:mt-0">

@@ -17,17 +17,22 @@ import {
   Newspaper, 
 } from 'lucide-react';
 import EntertainmentApi from '../api/entertainmentapi';
+import TimesOfIndiaEntertainmentFetcher from '../Rss/EntertainmentNews'; // Adjust path as needed
 
 const Entertainment = () => {
   const navigate = useNavigate();
   const [featuredContent, setFeaturedContent] = useState([]);
   const [latestContent, setLatestContent] = useState([]);
+  const [rssContent, setRssContent] = useState([]); // New state for RSS content
   const [trendingContent, setTrendingContent] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingRss, setIsLoadingRss] = useState(false); // New state for RSS loading
   const [activeCategory, setActiveCategory] = useState('all');
   const [error, setError] = useState(null);
   const [expandedArticles, setExpandedArticles] = useState({});
   const [displayCount, setDisplayCount] = useState(6);
+  const [showRssData, setShowRssData] = useState(false); // New state to track if RSS data should be shown
+  const [rssDataLoaded, setRssDataLoaded] = useState(false); // Track if RSS data has been loaded
 
   // Debug log to check if loadMoreContent is called
   console.log(`Current display count: ${displayCount}`);
@@ -81,8 +86,42 @@ const Entertainment = () => {
     }));
   };
 
+  // Modified loadMoreContent function to handle RSS data
   const loadMoreContent = () => {
-    setDisplayCount(prevCount => prevCount + 3);
+    if (!rssDataLoaded) {
+      // First time clicking - load RSS data
+      setIsLoadingRss(true);
+      setShowRssData(true);
+      // The RSS component will be rendered and will call handleRssDataLoaded
+    } else {
+      // RSS data already loaded, just show more
+      setDisplayCount(prevCount => prevCount + 4);
+    }
+  };
+
+  // New function to handle RSS data loading
+  const handleRssDataLoaded = (rssData) => {
+    try {
+      if (rssData && rssData.length > 0) {
+        // Process RSS data to match the expected format
+        const processedRssData = rssData.map((item, index) => ({
+          ...item,
+          id: `rss-${index}`, // Prefix with 'rss-' to distinguish from API data
+          subcategory: item.category || 'Entertainment',
+          readTime: `${Math.max(1, Math.floor((item.summary?.length || 0) / 200))} min read`,
+          isHot: false,
+          rating: Math.min(5, (index % 3) + 3), // Generate ratings 3-5
+          source: 'RSS' // Add source identifier
+        }));
+        
+        setRssContent(processedRssData);
+        setRssDataLoaded(true);
+      }
+    } catch (error) {
+      console.error('Error processing RSS data:', error);
+    } finally {
+      setIsLoadingRss(false);
+    }
   };
 
   const handleDataLoaded = (apiData) => {
@@ -102,7 +141,8 @@ const Entertainment = () => {
         subcategory: item.subcategory || 'General',
         readTime: `${Math.max(1, Math.floor((item.summary?.length || 0) / 200))} min read`,
         isHot: index % 5 === 0,
-        rating: Math.min(5, (index % 5) + 3) // Generate ratings 3-5
+        rating: Math.min(5, (index % 5) + 3), // Generate ratings 3-5
+        source: 'API' // Add source identifier
       }));
       
       // Generate more simulated data if needed
@@ -115,7 +155,8 @@ const Entertainment = () => {
             ...originalItem,
             id: `main-${processedData.length + i}`,
             title: originalItem.title ? `${originalItem.title} - Extended` : 'No title available',
-            summary: originalItem.summary ? `${originalItem.summary.substring(0, 50)}... Additional content for extended article. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.` : 'No description available'
+            summary: originalItem.summary ? `${originalItem.summary.substring(0, 50)}... Additional content for extended article. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.` : 'No description available',
+            source: 'API'
           });
         }
       }
@@ -225,9 +266,31 @@ const Entertainment = () => {
     'General': <FiStar className="mr-2" />
   };
 
+  // Function to get content to display (API + RSS)
+  const getContentToDisplay = () => {
+    let contentToShow = latestContent
+      .filter(content => activeCategory === 'all' || content.subcategory.toLowerCase().includes(activeCategory))
+      .slice(0, displayCount);
+    
+    // Add RSS content if it should be shown
+    if (showRssData && rssContent.length > 0) {
+      const rssToShow = rssContent
+        .filter(content => activeCategory === 'all' || content.subcategory.toLowerCase().includes(activeCategory))
+        .slice(0, rssDataLoaded ? rssContent.length : 4);
+      contentToShow = [...contentToShow, ...rssToShow];
+    }
+    
+    return contentToShow;
+  };
+
   return (
     <div className="bg-gradient-to-b from-purple-900 to-black min-h-screen text-white">
       <EntertainmentApi onDataLoaded={handleDataLoaded} />
+      
+      {/* Conditionally render RSS fetcher when needed */}
+      {showRssData && !rssDataLoaded && (
+        <TimesOfIndiaEntertainmentFetcher onDataLoaded={handleRssDataLoaded} />
+      )}
       
       {isLoading ? (
         <LoadingSkeleton />
@@ -303,14 +366,6 @@ const Entertainment = () => {
                         </div>
                         
                         <div className="flex justify-between items-center">
-                          <div className="flex items-center">
-                            {[...Array(5)].map((_, i) => (
-                              <FiStar 
-                                key={i} 
-                                className={`${i < content.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-500'} w-4 h-4`}
-                              />
-                            ))}
-                          </div>
                           <button 
                             onClick={() => handleReadMore(content)}
                             className="text-pink-400 hover:text-pink-300 text-xs font-medium flex items-center"
@@ -376,9 +431,6 @@ const Entertainment = () => {
                     ))}
                   </div>
                 </div>
-
-                {/* Celebrity Spotlights - Additional sidebar content */}
-               
               </div>
 
               {/* Latest Content Section */}
@@ -391,74 +443,79 @@ const Entertainment = () => {
                 </div>
 
                 <div className="space-y-6">
-                  {latestContent
-                    .filter(content => activeCategory === 'all' || content.subcategory.toLowerCase().includes(activeCategory))
-                    .slice(0, displayCount)
-                    .map(content => (
-                      <div key={content.id} className="bg-black bg-opacity-40 rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 backdrop-blur-sm border border-gray-800 group">
-                        <div className="md:flex">
-                          <div className="md:flex-shrink-0 md:w-48 w-full h-48 md:h-auto overflow-hidden relative">
-                            <img 
-                              className="w-full h-full object-cover" 
-                              src={content.image} 
-                              alt={`Entertainment image: ${content.title}`}
-                              onError={(e) => {
-                                e.target.src = `https://source.unsplash.com/random/300x200/?${content.subcategory.toLowerCase()},entertainment`;
-                              }}
-                            />
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent h-16"></div>
-                            <div className="absolute top-2 left-2 bg-pink-600 text-white text-xs px-2 py-1 rounded-full">
-                              {content.subcategory}
+                  {getContentToDisplay().map(content => (
+                    <div key={content.id} className="bg-black bg-opacity-40 rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 backdrop-blur-sm border border-gray-800 group">
+                      <div className="md:flex">
+                        <div className="md:flex-shrink-0 md:w-48 w-full h-48 md:h-auto overflow-hidden relative">
+                          <img 
+                            className="w-full h-full object-cover" 
+                            src={content.image} 
+                            alt={`Entertainment image: ${content.title}`}
+                            onError={(e) => {
+                              e.target.src = `https://source.unsplash.com/random/300x200/?${content.subcategory.toLowerCase()},entertainment`;
+                            }}
+                          />
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent h-16"></div>
+                          {/* <div className="absolute top-2 left-2 bg-pink-600 text-white text-xs px-2 py-1 rounded-full">
+                            {content.subcategory}
+                          </div> */}
+                          {/* Add RSS indicator */}
+                          {/* {content.source === 'RSS' && (
+                            <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded-full">
+                              RSS
                             </div>
+                          )} */}
+                        </div>
+                        <div className="p-4 md:p-6 flex-1">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-xs text-pink-400">{content.date}</span>
+                            <span className="text-xs text-gray-400">{content.readTime}</span>
                           </div>
-                          <div className="p-4 md:p-6 flex-1">
-                            <div className="flex justify-between items-start mb-2">
-                              <span className="text-xs text-pink-400">{content.date}</span>
-                              <span className="text-xs text-gray-400">{content.readTime}</span>
-                            </div>
-                            <h3 className="text-xl font-semibold text-pink-400 mb-2 transition-colors">
-                              {content.title}
-                            </h3>
-                            
-                            <div className="text-gray-300 mb-4 overflow-hidden transition-all duration-300" style={{maxHeight: expandedArticles[content.id] ? '1000px' : '3rem'}}>
-                              <p>{content.summary.length > 150 && !expandedArticles[content.id] ? content.summary.substring(0, 150) + "..." : content.summary.substring(0, 150) + "..."}</p>
-                            </div>
-                            
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center">
-                                {[...Array(5)].map((_, i) => (
-                                  <FiStar 
-                                    key={i} 
-                                    className={`${i < content.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-500'} w-4 h-4`}
-                                  />
-                                ))}
-                              </div>
-                              <button 
-                                onClick={() => handleReadMore(content)}
-                                className="text-pink-500 hover:text-pink-400 text-sm font-medium flex items-center transition-colors"
-                              >
-                                {getButtonText(content, expandedArticles[content.id])}
-                                {expandedArticles[content.id] ? (
-                                  <FiChevronUp className="ml-1" size={14} />
-                                ) : (
-                                  <FiChevronDown className="ml-1" size={14} />
-                                )}
-                              </button>
-                            </div>
+                          <h3 className="text-xl font-semibold text-pink-400 mb-2 transition-colors">
+                            {content.title}
+                          </h3>
+                          
+                          <div className="text-gray-300 mb-4 overflow-hidden transition-all duration-300" style={{maxHeight: expandedArticles[content.id] ? '1000px' : '3rem'}}>
+                            <p>{content.summary.length > 150 && !expandedArticles[content.id] ? content.summary.substring(0, 150) + "..." : content.summary.substring(0, 150) + "..."}</p>
+                          </div>
+                          
+                          <div className="flex justify-between items-center">
+                            <button 
+                              onClick={() => handleReadMore(content)}
+                              className="text-pink-500 hover:text-pink-400 text-sm font-medium flex items-center transition-colors"
+                            >
+                              {getButtonText(content, expandedArticles[content.id])}
+                              {expandedArticles[content.id] ? (
+                                <FiChevronUp className="ml-1" size={14} />
+                              ) : (
+                                <FiChevronDown className="ml-1" size={14} />
+                              )}
+                            </button>
                           </div>
                         </div>
                       </div>
-                    ))}
+                    </div>
+                  ))}
                   
                   {/* Load More Button */}
-                  {latestContent.length > displayCount && (
+                  {(latestContent.length > displayCount || !rssDataLoaded) && (
                     <div className="flex justify-center mt-8">
                       <button 
                         onClick={loadMoreContent}
-                        className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-full shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center transform hover:scale-105"
+                        disabled={isLoadingRss}
+                        className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-full shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Load More Content
-                        <FiArrowRight className="ml-2" />
+                        {isLoadingRss ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Loading Content...
+                          </>
+                        ) : (
+                          <>
+                            {rssDataLoaded ? 'Load More Content' : 'Load Content'}
+                            <FiArrowRight className="ml-2" />
+                          </>
+                        )}
                       </button>
                     </div>
                   )}
