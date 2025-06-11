@@ -67,7 +67,7 @@ const SportsApi = ({ onDataLoaded }) => {
       
       // Fetch from your backend API
       const response = await fetch(
-        `http://localhost:5000/api/news/sports`
+        `https://national-backend-6my5.onrender.com/api/news/sports`
       );
       
       if (!response.ok) {

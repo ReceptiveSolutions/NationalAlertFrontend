@@ -65,7 +65,7 @@ const Newsapi = ({ onDataLoaded, category = 'general' }) => {
       
       // Fetch from your backend API
       const response = await fetch(
-        `http://localhost:5000/api/news/${category}`
+        `https://national-backend-6my5.onrender.com/api/news/${category}`
       );
       
       if (!response.ok) {

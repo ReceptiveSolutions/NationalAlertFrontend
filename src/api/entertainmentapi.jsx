@@ -67,7 +67,7 @@ const EntertainmentApi = ({ onDataLoaded }) => {
       
       // Fetch from your backend API
       const response = await fetch(
-        `http://localhost:5000/api/news/entertainment`
+        `https://national-backend-6my5.onrender.com/api/news/entertainment`
       );
       
       if (!response.ok) {
