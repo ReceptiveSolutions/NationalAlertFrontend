@@ -185,7 +185,7 @@ const SportsPage = () => {
           </div>
           <button 
             onClick={refreshNews}
-            className="flex items-center bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors shadow-md text-sm sm:text-base"
+            className="flex items-center bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors shadow-md text-sm sm:text-base cursor-pointer"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
@@ -259,7 +259,7 @@ const SportsPage = () => {
                         {featuredNews.summary}
                       </p>
                       <button 
-                        className="inline-flex items-center bg-red-600 hover:bg-red-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg transition-colors shadow-md text-sm font-medium"
+                        className="inline-flex items-center bg-red-600 hover:bg-red-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg transition-colors shadow-md text-sm font-medium cursor-pointer"
                         onClick={() => toggleDescription(featuredNews.id)}
                       >
                         {getButtonText(featuredNews, expandedDescriptions[featuredNews.id])}
@@ -316,7 +316,7 @@ const SportsPage = () => {
                         </p>
                       </div>
                       <button 
-                        className="text-red-600 font-medium flex items-center hover:text-red-800 transition-colors self-start"
+                        className="text-red-600 font-medium flex items-center hover:text-red-800 transition-colors self-start cursor-pointer"
                         onClick={() => toggleDescription(news.id)}
                       >
                         {getButtonText(news, expandedDescriptions[news.id])}
@@ -375,7 +375,7 @@ const SportsPage = () => {
                         </p>
                       </div>
                       <button 
-                        className="text-red-600 text-xs sm:text-sm font-medium flex items-center hover:text-red-800 transition-colors self-start mt-auto"
+                        className="text-red-600 text-xs sm:text-sm font-medium flex items-center hover:text-red-800 transition-colors self-start mt-auto cursor-pointer"
                         onClick={() => toggleDescription(news.id)}
                       >
                         {getButtonText(news, expandedDescriptions[news.id])}

@@ -368,7 +368,7 @@ const Entertainment = () => {
                         <div className="flex justify-between items-center">
                           <button 
                             onClick={() => handleReadMore(content)}
-                            className="text-pink-400 hover:text-pink-300 text-xs font-medium flex items-center"
+                            className="text-pink-400 hover:text-pink-300 text-xs font-medium flex items-center cursor-pointer"
                           >
                             {getButtonText(content, expandedArticles[content.id])}
                             {expandedArticles[content.id] ? (
@@ -417,7 +417,7 @@ const Entertainment = () => {
                           </div>
                           <button 
                             onClick={() => handleReadMore(content)}
-                            className="text-pink-500 hover:text-pink-400 text-xs font-medium flex items-center mt-2"
+                            className="text-pink-500 hover:text-pink-400 text-xs font-medium flex items-center mt-2 cursor-pointer"
                           >
                             {getButtonText(content, expandedArticles[content.id])}
                             {expandedArticles[content.id] ? (
@@ -482,7 +482,7 @@ const Entertainment = () => {
                           <div className="flex justify-between items-center">
                             <button 
                               onClick={() => handleReadMore(content)}
-                              className="text-pink-500 hover:text-pink-400 text-sm font-medium flex items-center transition-colors"
+                              className="text-pink-500 hover:text-pink-400 text-sm font-medium flex items-center transition-colors cursor-pointer"
                             >
                               {getButtonText(content, expandedArticles[content.id])}
                               {expandedArticles[content.id] ? (
@@ -503,7 +503,7 @@ const Entertainment = () => {
                       <button 
                         onClick={loadMoreContent}
                         disabled={isLoadingRss}
-                        className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-full shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-full shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                       >
                         {isLoadingRss ? (
                           <>

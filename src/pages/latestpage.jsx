@@ -359,7 +359,7 @@ const LatestNews = ({ onNavigateToArticle }) => {
                       {/* Read More Button */}
                       <button
                         onClick={() => handleReadMore(article)}
-                        className="inline-flex items-center gap-2 text-red-500 hover:text-red-400 font-semibold text-sm transition-all duration-300 group/btn"
+                        className="inline-flex items-center gap-2 text-red-500 hover:text-red-400 font-semibold text-sm transition-all duration-300 group/btn cursor-pointer"
                       >
                         <BookOpen size={16} />
                         <span>Read Full Article</span>

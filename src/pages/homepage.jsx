@@ -399,7 +399,7 @@ const NewsHomepage = () => {
                           <div></div>
                           <button 
                             onClick={() => toggleExpandFeatured(article)}
-                            className="text-red-600 hover:text-red-400 text-xs font-medium flex items-center"
+                            className="text-red-600 hover:text-red-400 text-xs font-medium flex items-center cursor-pointer"
                           >
                             {hasMoreThan50Words(article.summary) ? (
                               <>View full article <FiExternalLink className="ml-1" size={14} /></>
@@ -446,7 +446,7 @@ const NewsHomepage = () => {
                           </div>
                           <button 
                             onClick={() => toggleExpandTrending(article)}
-                            className="text-red-600 hover:text-red-500 text-xs font-medium flex items-center mt-2"
+                            className="text-red-600 hover:text-red-500 text-xs font-medium flex items-center mt-2 cursor-pointer"
                           >
                             {hasMoreThan50Words(article.summary) ? (
                               <>View full article <FiExternalLink className="ml-1" size={12} /></>
@@ -496,7 +496,7 @@ const NewsHomepage = () => {
                           
                           <button 
                             onClick={() => toggleExpandLatest(article)}
-                            className="text-red-600 hover:text-red-500 text-sm font-medium flex items-center transition-colors duration-200"
+                            className="text-red-600 hover:text-red-500 text-sm font-medium flex items-center transition-colors duration-200 cursor-pointer"
                             aria-expanded={expandedLatestArticles[article.id] ? "true" : "false"}
                           >
                             {hasMoreThan50Words(article.summary) ? (
@@ -546,7 +546,7 @@ const NewsHomepage = () => {
                           
                           <button 
                             onClick={() => toggleExpandLatest(article)}
-                            className="text-red-600  text-sm font-medium flex items-center transition-colors duration-200"
+                            className="text-red-600  text-sm font-medium flex items-center transition-colors duration-200 cursor-pointer"
                             aria-expanded={expandedLatestArticles[article.id] ? "true" : "false"}
                           >
                             {hasMoreThan50Words(article.summary) ? (

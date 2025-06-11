@@ -411,7 +411,7 @@ const loadMoreContent = () => {
                           </div>
                           <button 
                             onClick={() => handleReadMoreClick(stock, 'hero')}
-                            className="text-red-600 text-xs font-medium flex items-center"
+                            className="text-red-600 text-xs font-medium flex items-center cursor-pointer"
                           >
                             {getButtonText(stock, 'hero', `hero_${stock.id}`)}
                             {countWords(stock.summary) > 50 ? (
@@ -465,7 +465,7 @@ const loadMoreContent = () => {
                         <div className="flex justify-between items-center">
                           <button 
                             onClick={() => handleReadMoreClick(content, 'main')}
-                            className="text-red-600 text-sm font-medium flex items-center transition-colors"
+                            className="text-red-600 text-sm font-medium flex items-center transition-colors cursor-pointer"
                           >
                             {getButtonText(content, 'main', `main_${content.id}`)}
                             {countWords(content.summary) > 50 ? (
