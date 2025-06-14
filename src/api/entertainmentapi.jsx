@@ -66,9 +66,12 @@ const EntertainmentApi = ({ onDataLoaded }) => {
       setIsRetrying(retryCount > 0);
       
       // Fetch from your backend API
-      const response = await fetch(
-        `https://national-backend-6my5.onrender.com/api/news/entertainment`
-      );
+//       const response = await fetch(
+//   `${import.meta.env.VITE_API_BASE_URL}/api/news/entertainment`
+// );
+            
+       const response = await fetch('https://nationalalertbackend.onrender.com/api/news/entertainment');
+
       
       if (!response.ok) {
         throw new Error(`Backend returned status ${response.status}`);

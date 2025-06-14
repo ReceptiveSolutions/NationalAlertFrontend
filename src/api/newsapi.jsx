@@ -9,12 +9,12 @@ const Newsapi = ({ onDataLoaded, category = 'general' }) => {
     const fallbackData = [];
     
     for (let i = 0; i < 15; i++) {
-      const category = categories[i % categories.length];
+      const categoryName = categories[i % categories.length];
       fallbackData.push({
         id: i,
-        title: `${category} News: This is a placeholder headline for ${category} news story ${i+1}`,
-        summary: `This is placeholder content for a news article that couldn't be loaded from the API. This would normally contain a summary of the latest ${category.toLowerCase()} news.`,
-        image: `https://source.unsplash.com/random/800x500/?${category.toLowerCase()}`,
+        title: `${categoryName} News: This is a placeholder headline for ${categoryName} news story ${i+1}`,
+        summary: `This is placeholder content for a news article that couldn't be loaded from the API. This would normally contain a summary of the latest ${categoryName.toLowerCase()} news.`,
+        image: `https://source.unsplash.com/random/800x500/?${categoryName.toLowerCase()}`,
         date: new Date().toLocaleDateString(),
       });
     }
@@ -63,10 +63,9 @@ const Newsapi = ({ onDataLoaded, category = 'general' }) => {
       
       setIsRetrying(retryCount > 0);
       
-      // Fetch from your backend API
-      const response = await fetch(
-        `https://national-backend-6my5.onrender.com/api/news/${category}`
-      );
+      // Fetch from your backend API - using the category prop directly
+      // Remove the line: const category = 'general'; 
+      const response = await fetch(`https://nationalalertbackend.onrender.com/api/news/${category}`);
       
       if (!response.ok) {
         throw new Error(`Backend returned status ${response.status}`);

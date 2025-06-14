@@ -1,6 +1,6 @@
 import React from 'react'
 import logo from '../assets/luff.png'
- function Logo({width = '120px', height = '120px', }) {
+ function Logo({width = '100px', height = '100px', }) {
     return (
         <>
         <div>

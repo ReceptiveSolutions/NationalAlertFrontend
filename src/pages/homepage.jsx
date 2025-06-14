@@ -215,12 +215,16 @@ const NewsHomepage = () => {
 
   // Toggle functions remain the same but use the new ID system
   const toggleExpandFeatured = (article) => {
+    // Check if the description is more than 50 words
     const wordCount = article.summary ? article.summary.split(/\s+/).length : 0;
     
     if (wordCount > 50) {
-      // Use memory-based storage instead of localStorage
-      navigate(`/article/${article.id}`, { state: { article } });
+      // Store article data in localStorage for detail page to access
+      localStorage.setItem(`article_${article.id}`, JSON.stringify(article));
+      // Navigate to the detail page
+      navigate(`/article/${article.id}`);
     } else {
+      // For shorter articles, just toggle expansion in-place
       setExpandedFeaturedArticles(prev => ({
         ...prev,
         [article.id]: !prev[article.id]
@@ -228,12 +232,19 @@ const NewsHomepage = () => {
     }
   };
 
+
+  // Toggle expanded state for a trending article
   const toggleExpandTrending = (article) => {
+    // Check if the description is more than 50 words
     const wordCount = article.summary ? article.summary.split(/\s+/).length : 0;
     
     if (wordCount > 50) {
-      navigate(`/article/${article.id}`, { state: { article } });
+      // Store article data in localStorage for detail page to access
+      localStorage.setItem(`article_${article.id}`, JSON.stringify(article));
+      // Navigate to the detail page
+      navigate(`/article/${article.id}`);
     } else {
+      // For shorter articles, just toggle expansion in-place
       setExpandedTrendingArticles(prev => ({
         ...prev,
         [article.id]: !prev[article.id]
@@ -241,12 +252,19 @@ const NewsHomepage = () => {
     }
   };
 
+
+  // Toggle expanded state for a latest article
   const toggleExpandLatest = (article) => {
+    // Check if the description is more than 50 words
     const wordCount = article.summary ? article.summary.split(/\s+/).length : 0;
     
     if (wordCount > 50) {
-      navigate(`/article/${article.id}`, { state: { article } });
+      // Store article data in localStorage for detail page to access
+      localStorage.setItem(`article_${article.id}`, JSON.stringify(article));
+      // Navigate to the detail page
+      navigate(`/article/${article.id}`);
     } else {
+      // For shorter articles, just toggle expansion in-place
       setExpandedLatestArticles(prev => ({
         ...prev,
         [article.id]: !prev[article.id]
@@ -254,6 +272,8 @@ const NewsHomepage = () => {
     }
   };
 
+
+  
   // Generate additional content sections for detail pages
   const generateAdditionalContent = () => {
     return [];

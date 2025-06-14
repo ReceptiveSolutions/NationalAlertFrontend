@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiCalendar, FiUser, FiShare2 } from 'react-icons/fi';
 import DOMPurify from 'dompurify';
 import { storage } from '../appwrite/appwriteConfig';
@@ -7,6 +7,7 @@ import conf from '../conf/conf';
 
 const ArticleDetailPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [article, setArticle] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -124,55 +125,120 @@ const ArticleDetailPage = () => {
   useEffect(() => {
     const fetchArticleDetails = async () => {
       setIsLoading(true);
+      setError(null);
+      
       try {
+        // Try to get the article from localStorage first
         const storedArticle = localStorage.getItem(`article_${id}`);
+        
         if (storedArticle) {
-          const parsedArticle = JSON.parse(storedArticle);
-          setArticle(parsedArticle);
-        } else {
-          const response = await fetch(`/api/articles/${id}`);
-          if (!response.ok) throw new Error('Article not found');
-          let data = await response.json();
+          try {
+            const parsedArticle = JSON.parse(storedArticle);
+            setArticle(parsedArticle);
+            setIsLoading(false);
+            return;
+          } catch (parseError) {
+            console.error('Error parsing stored article:', parseError);
+            localStorage.removeItem(`article_${id}`); // Remove corrupted data
+          }
+        }
 
-          // Normalize content structure
-          if (data.content) {
-            // If content is a string with multiple paragraphs
-            if (typeof data.content === 'string') {
-              data.content = data.content
-                .replace(/\n\s*\n/g, '\n\n')
-                .trim();
+        // If no stored article, try to find it in the cached news data
+        const categories = ['business', 'sports', 'technology', 'entertainment', 'health', 'general'];
+        let foundArticle = null;
+
+        for (const category of categories) {
+          try {
+            const cachedData = localStorage.getItem(`${category}Data`);
+            if (cachedData) {
+              const articles = JSON.parse(cachedData);
+              foundArticle = articles.find(article => 
+                article.id === id || 
+                article.id === parseInt(id) || 
+                article.article_id === id
+              );
+              if (foundArticle) break;
             }
-            // If content is a string that might be JSON
-            else if (typeof data.content === 'string' && data.content.trim().startsWith('{')) {
-              try {
-                data.content = JSON.parse(data.content);
-              } catch (e) {
-                console.warn('Failed to parse content as JSON', e);
+          } catch (e) {
+            console.error(`Error parsing ${category} cache:`, e);
+          }
+        }
+
+        if (foundArticle) {
+          setArticle(foundArticle);
+          // Store for future use
+          localStorage.setItem(`article_${id}`, JSON.stringify(foundArticle));
+        } else {
+          // Last resort: try the API call with better error handling
+          try {
+            const response = await fetch(`/api/articles/${id}`);
+            
+            // Check if response is actually JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+              throw new Error('Server returned non-JSON response (likely 404 or 500 error page)');
+            }
+            
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            // Normalize content structure
+            if (data.content) {
+              if (typeof data.content === 'string') {
+                data.content = data.content.replace(/\n\s*\n/g, '\n\n').trim();
+              } else if (typeof data.content === 'string' && data.content.trim().startsWith('{')) {
+                try {
+                  data.content = JSON.parse(data.content);
+                } catch (e) {
+                  console.warn('Failed to parse content as JSON', e);
+                }
               }
             }
-          }
 
-          setArticle(data);
-          localStorage.setItem(`article_${id}`, JSON.stringify(data));
+            setArticle(data);
+            localStorage.setItem(`article_${id}`, JSON.stringify(data));
+            
+          } catch (apiError) {
+            console.error('API Error:', apiError);
+            throw new Error('Article not found. It may have been removed or the link is invalid.');
+          }
         }
+        
       } catch (err) {
-        setError('Failed to load article.');
         console.error('Error fetching article:', err);
+        setError(err.message || 'Failed to load article. Please try again.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchArticleDetails();
+    if (id) {
+      fetchArticleDetails();
+    } else {
+      setError('No article ID provided');
+      setIsLoading(false);
+    }
   }, [id]);
 
   const getArticleImage = (article) => {
     if (!article) return null;
-    const imageField = article.featuredimage || article.image || article.thumbnail;
+    const imageField = article.featuredimage || article.image || article.thumbnail || article.image_url;
     if (typeof imageField === 'object' && imageField !== null) {
       return imageField.url || imageField.src || imageField.href || null;
     }
     return imageField;
+  };
+
+  const handleBackClick = () => {
+    // Try to go back to the previous page, or default to home
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
   };
 
   if (isLoading) return (
@@ -186,16 +252,31 @@ const ArticleDetailPage = () => {
   
   if (error) return (
     <div className="flex justify-center items-center min-h-screen px-4">
-      <div className="text-center">
-        <div className="text-red-600 text-lg mb-2">⚠️</div>
-        <div className="text-red-600 text-sm sm:text-base">{error}</div>
+      <div className="text-center max-w-md">
+        <div className="text-red-600 text-4xl mb-4">⚠️</div>
+        <h2 className="text-lg font-semibold text-gray-800 mb-2">Article Not Found</h2>
+        <p className="text-red-600 text-sm sm:text-base mb-6">{error}</p>
+        <button
+          onClick={handleBackClick}
+          className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors duration-200"
+        >
+          Go Back
+        </button>
       </div>
     </div>
   );
   
   if (!article) return (
     <div className="flex justify-center items-center min-h-screen px-4">
-      <div className="text-center text-gray-600 text-sm sm:text-base">Article not found</div>
+      <div className="text-center">
+        <div className="text-gray-600 text-sm sm:text-base mb-4">Article not found</div>
+        <button
+          onClick={handleBackClick}
+          className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors duration-200"
+        >
+          Go Back
+        </button>
+      </div>
     </div>
   );
 
@@ -205,13 +286,13 @@ const ArticleDetailPage = () => {
       <div className="bg-white shadow-sm sticky top-0 z-10 border-b">
         <div className="px-3 sm:px-4 lg:px-6 max-w-7xl mx-auto">
           <div className="flex items-center justify-between h-12 sm:h-14 lg:h-16">
-            <Link 
-              to="/" 
+            <button
+              onClick={handleBackClick}
               className="flex items-center text-gray-700 hover:text-red-600 transition-colors duration-200 -ml-2 px-2 py-1 rounded-md hover:bg-gray-100"
             >
               <FiArrowLeft className="mr-1.5 sm:mr-2 w-4 h-4 sm:w-5 sm:h-5" />
               <span className="text-sm sm:text-base font-medium">Back</span>
-            </Link>
+            </button>
             <button 
               onClick={() => {
                 if (navigator.share) {
@@ -246,12 +327,12 @@ const ArticleDetailPage = () => {
                 <FiCalendar className="mr-1.5 w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                 <span className="truncate">{article.date}</span>
               </span>
-              {/* {article.author && (
+              {article.author && (
                 <span className="flex items-center">
                   <FiUser className="mr-1.5 w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                   <span className="truncate">{article.author}</span>
                 </span>
-              )} */}
+              )}
             </div>
           </header>
 

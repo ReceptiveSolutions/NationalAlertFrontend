@@ -12,6 +12,9 @@ const SportsPage = () => {
   const [displayCount, setDisplayCount] = useState(8);
   const [showNoMoreNewsPopup, setShowNoMoreNewsPopup] = useState(false);
   
+  // In-memory storage for articles (since localStorage isn't available)
+  const [articleStorage, setArticleStorage] = useState({});
+  
   console.log(`Current display count in SportsPage: ${displayCount}`);
 
   const handleDataLoaded = (data) => {
@@ -23,30 +26,58 @@ const SportsPage = () => {
   
   const refreshNews = () => {
     setLoading(true);
-    // Note: localStorage is not supported in Claude artifacts
     setSportsNews([]);
+    setArticleStorage({}); // Clear article storage
   };
 
   const countWords = (str) => {
     return str.split(/\s+/).filter(Boolean).length;
   };
 
+  const storeArticle = (article) => {
+    const articleData = {
+      ...article,
+      date: article.date || new Date().toLocaleDateString(),
+      author: article.author || 'Sports Reporter',
+      readTime: article.readTime || `${Math.ceil(countWords(article.summary || '') / 200)} min read`,
+      content: article.summary || article.content || 'No content available'
+    };
+    
+    // Store in component state instead of localStorage
+    setArticleStorage(prev => ({
+      ...prev,
+      [article.id]: articleData
+    }));
+    
+    // Also try to store in localStorage if available
+    try {
+      if (typeof Storage !== 'undefined') {
+        localStorage.setItem(`article_${article.id}`, JSON.stringify(articleData));
+        // Store in category cache as well
+        const existingSportsData = JSON.parse(localStorage.getItem('sportsData') || '[]');
+        const updatedSportsData = existingSportsData.some(item => item.id === article.id) 
+          ? existingSportsData 
+          : [...existingSportsData, articleData];
+        localStorage.setItem('sportsData', JSON.stringify(updatedSportsData));
+      }
+    } catch (error) {
+      console.warn('localStorage not available, using in-memory storage');
+    }
+    
+    return articleData;
+  };
+
+  //!! toggel discription 
   const toggleDescription = (id) => {
     console.log("Toggling description for id:", id);
     const article = [...filteredNews].find(news => news.id === id);
     
     if (article && article.summary && countWords(article.summary) > 50) {
-      // For articles with >50 words, navigate to detail page
-      const articleData = {
-        ...article,
-        date: article.date || new Date().toLocaleDateString(),
-        author: article.author || 'Sports Reporter',
-        readTime: article.readTime || `${Math.ceil(countWords(article.summary) / 200)} min read`
-      };
+      // Store the article data before navigation
+      const storedArticle = storeArticle(article);
+      console.log("Stored article:", storedArticle);
       
-      // In a real app, you'd use localStorage here
-      // localStorage.setItem(`article_${article.id}`, JSON.stringify(articleData));
-      
+      // Navigate to detail page
       navigate(`/article/${article.id}`);
     } else {
       // For shorter articles, toggle description
@@ -101,6 +132,17 @@ const SportsPage = () => {
     
     return () => clearTimeout(timer);
   }, [loading, sportsNews]);
+
+  // Store all articles when they're loaded
+  useEffect(() => {
+    if (filteredNews.length > 0) {
+      filteredNews.forEach(article => {
+        if (!articleStorage[article.id]) {
+          storeArticle(article);
+        }
+      });
+    }
+  }, [filteredNews]);
 
   if (loading) {
     return (
@@ -347,11 +389,6 @@ const SportsPage = () => {
                       e.target.src = `https://source.unsplash.com/random/300x200/?sports,${news.subcategory}`;
                     }}
                   />
-                  {/* <div className="absolute top-0 left-0 m-2">
-                    <span className="bg-red-600 text-white text-xs px-2 py-1 rounded-sm">
-                      {news.subcategory}
-                    </span>
-                  </div> */}
                 </div>
                 <div className="p-3 sm:p-4 flex flex-col flex-grow">
                   <div className="flex items-center text-gray-500 text-xs mb-2">

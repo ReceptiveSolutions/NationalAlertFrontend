@@ -7,6 +7,7 @@ const BBCNewsFetcher = ({ onDataLoaded }) => {
         // Using a CORS proxy to fetch RSS feed
         const proxyUrl = 'https://api.allorigins.win/raw?url=';
         const rssUrl = 'http://feeds.bbci.co.uk/news/rss.xml';
+        // const rssUrl = 'https://timesofindia.indiatimes.com/rssfeeds/1898055.cms';
         
         const response = await fetch(proxyUrl + encodeURIComponent(rssUrl));
         

@@ -73,8 +73,14 @@ const ShareMarketApi = ({ onDataLoaded }) => {
       setIsRetrying(retryCount > 0);
       
       // Call YOUR backend endpoint instead of the News API directly
-      const response = await fetch('https://national-backend-6my5.onrender.com/api/news');
-      
+//      const response = await fetch(
+//   `${import.meta.env.VITE_API_BASE_URL}/api/news`
+// );
+
+      const response = await fetch('https://nationalalertbackend.onrender.com/api/news');
+
+
+
       if (!response.ok) {
         throw new Error(`Backend returned status ${response.status}`);
       }

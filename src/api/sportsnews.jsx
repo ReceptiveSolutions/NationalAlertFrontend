@@ -66,10 +66,14 @@ const SportsApi = ({ onDataLoaded }) => {
       setIsRetrying(retryCount > 0);
       
       // Fetch from your backend API
-      const response = await fetch(
-        `https://national-backend-6my5.onrender.com/api/news/sports`
-      );
+//       const response = await fetch(
+//   `${import.meta.env.VITE_API_BASE_URL}/api/news/sports`
+// );
+       
+        const response = await fetch('https://nationalalertbackend.onrender.com/api/news/sports');
+
       
+
       if (!response.ok) {
         throw new Error(`Backend returned status ${response.status}`);
       }
