@@ -40,7 +40,7 @@ function Header() {
                         {/* Explorer Button - Top Left */}
                         <button
                             onClick={() => setIsMenuOpen(true)}
-                            className="text-white hover:text-gray-200 font-medium flex items-center text-sm sm:text-base transition-colors duration-200"
+                            className="text-white hover:text-gray-200 font-medium flex items-center text-sm sm:text-base transition-colors duration-200 cursor-pointer"
                             aria-label="Explore categories"
                         >
                             <FiMenu className="mr-1 h-4 w-4 sm:h-5 sm:w-5" />

@@ -486,14 +486,14 @@ const loadMoreContent = () => {
               {displayedRssNews.map(content => renderRssNewsCard(content))}
               
               {/* Loading indicator for RSS content */}
-              {isLoadingMore && (
+              {/* {isLoadingMore && (
                 <div className="flex justify-center py-8">
                   <div className="flex items-center space-x-3">
                     <div className="w-6 h-6 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
                     <span className="text-gray-600">Loading latest...</span>
                   </div>
                 </div>
-              )}
+              )} */}
               
               {/* Show Load More button */}
               {(getFilteredMarketNews().length > displayCount || rssLoadCount < rssNewsData.length || !hasLoadedRss) && (

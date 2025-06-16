@@ -194,12 +194,12 @@ const LatestNews = ({ onNavigateToArticle }) => {
             </h2>
             <p className="text-gray-400 text-lg">Real-time news updates and comprehensive coverage</p>
           </div>
-          <div className="text-right">
+          {/* <div className="text-right">
             <div className="text-2xl font-bold text-red-400">{news.length}</div>
             <div className="text-gray-500 text-sm uppercase tracking-wide">
               {news.length === 1 ? 'Article' : 'Articles'} Available
             </div>
-          </div>
+          </div> */}
         </div>
 
         {news.length === 0 ? (

@@ -593,11 +593,11 @@ const NewsHomepage = () => {
                         {isLoadingMore ? (
                           <>
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            {!rssDataFetched ? 'Loading RSS News...' : 'Loading More...'}
+                            {!rssDataFetched ? 'Loading News...' : 'Loading More...'}
                           </>
                         ) : (
                           <>
-                            {!rssDataFetched ? 'Load More News' : 'Load More RSS News'}
+                            {!rssDataFetched ? 'Load More News' : 'Load More News'}
                             <span className="ml-2 text-lg">→</span>
                           </>
                         )}
@@ -606,14 +606,14 @@ const NewsHomepage = () => {
                   )}
                   
                   {/* End of articles message */}
-                  {rssDataFetched && rssCurrentIndex >= rssNews.length && (
+                  {/* {rssDataFetched && rssCurrentIndex >= rssNews.length && (
                     <div className="text-center mt-6 sm:mt-8 py-4">
                       <p className="text-gray-600">You've reached the end of available articles.</p>
                       <p className="text-sm text-gray-500 mt-2">
                         Showing {latestNews.length} API articles + {additionalRssArticles.length} RSS articles
                       </p>
                     </div>
-                  )}
+                  )} */}
                 </div>
               </div>
             </div>
