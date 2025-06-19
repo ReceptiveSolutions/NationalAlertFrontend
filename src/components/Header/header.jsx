@@ -33,17 +33,17 @@ function Header() {
     return (
         <>
             {/* Main Header */}
-            <header className="bg-red-600 text-white sticky top-0 z-50">
+            <header className="bg-red-600 text-white sticky top-0 z-50 shadow-md">
                 <Container className="relative">
                     {/* Top Row */}
-                    <div className="flex items-center justify-between py-3 px-2 sm:px-4">
+                    <div className="flex items-center justify-between py-4 px-2 sm:px-4">
                         {/* Explorer Button - Top Left */}
                         <button
                             onClick={() => setIsMenuOpen(true)}
-                            className="text-white hover:text-gray-200 font-medium flex items-center text-sm sm:text-base transition-colors duration-200 cursor-pointer"
+                            className="flex items-center space-x-2 text-white hover:text-gray-100 font-medium text-sm sm:text-base transition-colors duration-200 cursor-pointer hover:bg-red-700 px-3 py-2 rounded-lg"
                             aria-label="Explore categories"
                         >
-                            <FiMenu className="mr-1 h-4 w-4 sm:h-5 sm:w-5" />
+                            <FiMenu className="h-4 w-4 sm:h-5 sm:w-5" />
                             <span className="hidden xs:inline">Explore</span>
                         </button>
 
@@ -56,37 +56,32 @@ function Header() {
 
                         {/* Submit News Button - Top Right */}
                         <NavLink to="/crimeReportForm">
-                            <button className="bg-white text-red-600 hover:bg-gray-100 px-2 py-1 sm:px-3 sm:py-2 rounded-md font-medium text-xs sm:text-sm transition-all duration-200 hover:shadow-md cursor-pointer">
+                            <button className="bg-white text-red-600 hover:bg-gray-50 px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all duration-200 hover:shadow-md cursor-pointer">
                                 <span className="hidden sm:inline">Report Crime</span>
                                 <span className="sm:hidden">Submit</span>
                             </button>
                         </NavLink>
                     </div>
 
-                    {/* Date - Bottom Left */}
-                    <div className="pb-2 text-xs sm:text-sm px-2 sm:px-4">
-                        <span className="hidden sm:inline">{currentDate}</span>
-                        <span className="sm:hidden">
-                            {new Date().toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
-                            })}
-                        </span>
+                    {/* Date - Hidden on mobile, shown on larger screens */}
+                    <div className="hidden sm:block pb-3 text-xs sm:text-sm px-2 sm:px-4">
+                        <div className="bg-red-700 px-3 py-1 rounded-md inline-block">
+                            <span>{currentDate}</span>
+                        </div>
                     </div>
                 </Container>
 
                 {/* Secondary Navbar */}
-                <nav className="bg-black text-white sticky top-0 z-40 py-2">
+                <nav className="bg-black text-white sticky top-0 z-40 py-2 border-t border-red-500">
                     <Container>
-                        <div className="flex space-x-3 sm:space-x-6 overflow-x-auto whitespace-nowrap px-2 sm:px-4 scrollbar-hide">
+                        <div className="flex space-x-1 sm:space-x-3 overflow-x-auto whitespace-nowrap px-2 sm:px-4 scrollbar-hide">
                             {secondaryLinks.map((link) => (
                                 <NavLink
                                     key={link.path}
                                     to={link.path}
                                     className={({ isActive }) => 
-                                        `hover:text-gray-300 transition-colors duration-200 text-sm sm:text-base py-1 px-2 rounded-md flex-shrink-0 ${
-                                            isActive ? 'font-bold bg-gray-800' : ''
+                                        `hover:text-gray-300 transition-colors duration-200 text-sm sm:text-base py-2 px-3 sm:px-4 rounded-md flex-shrink-0 ${
+                                            isActive ? 'bg-red-600 text-white font-semibold' : 'text-gray-300 hover:bg-gray-800'
                                         }`
                                     }
                                 >
@@ -100,30 +95,33 @@ function Header() {
 
             {/* Explore Side Menu */}
             <div
-                className={`fixed top-0 right-0 w-full sm:w-80 md:w-96 h-full bg-white shadow-2xl transform ${
+                className={`fixed top-0 right-0 w-full sm:w-80 md:w-96 h-full bg-white shadow-xl transform ${
                     isMenuOpen ? 'translate-x-0' : 'translate-x-full'
                 } transition-transform duration-300 ease-in-out z-50 overflow-y-auto`}
             >
-                <div className="p-4 sm:p-6 flex justify-between items-center border-b border-gray-200">
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-800">Explore News</h2>
+                {/* Menu Header */}
+                <div className="bg-red-600 text-white p-4 sm:p-6 flex justify-between items-center">
+                    <h2 className="text-lg sm:text-xl font-bold">Explore News</h2>
                     <button
                         onClick={() => setIsMenuOpen(false)}
-                        className="text-gray-500 hover:text-gray-700 p-1 hover:bg-gray-100 rounded-full transition-all duration-200"
+                        className="text-white hover:text-gray-200 p-2 hover:bg-red-700 rounded-lg transition-all duration-200"
                         aria-label="Close menu"
                     >
                         <FiX className="h-5 w-5 sm:h-6 sm:w-6" />
                     </button>
                 </div>
+
+                {/* Menu Content */}
                 <nav className="p-4 sm:p-6">
-                    <ul className="space-y-1 sm:space-y-2">
+                    <ul className="space-y-2">
                         {secondaryLinks.map((link) => (
                             <li key={link.path}>
                                 <NavLink
                                     to={link.path}
                                     onClick={() => setIsMenuOpen(false)}
                                     className={({ isActive }) => 
-                                        `block px-4 py-3 sm:py-4 rounded-lg hover:bg-gray-100 transition-all duration-200 w-full text-sm sm:text-base ${
-                                            isActive ? 'bg-red-50 text-red-600 font-medium border-l-4 border-red-600' : 'text-gray-700 hover:text-gray-900'
+                                        `block px-4 py-3 sm:py-4 rounded-lg hover:bg-gray-50 transition-all duration-200 w-full text-sm sm:text-base ${
+                                            isActive ? 'bg-red-50 text-red-600 font-semibold border-l-4 border-red-600' : 'text-gray-700 hover:text-gray-900'
                                         }`
                                     }
                                 >
