@@ -327,12 +327,12 @@ const ArticleDetailPage = () => {
                 <FiCalendar className="mr-1.5 w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                 <span className="truncate">{article.date}</span>
               </span>
-              {article.author && (
+              {/* {article.author && (
                 <span className="flex items-center">
                   <FiUser className="mr-1.5 w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                   <span className="truncate">{article.author}</span>
                 </span>
-              )}
+              )} */}
             </div>
           </header>
 
