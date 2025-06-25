@@ -8,15 +8,18 @@ const NewsHomepage = () => {
   const [featuredNews, setFeaturedNews] = useState([]);
   const [latestNews, setLatestNews] = useState([]);
   const [trendingNews, setTrendingNews] = useState([]);
-  const [rssNews, setRssNews] = useState([]); // New state for RSS data
-  const [apiNews, setApiNews] = useState([]); // Store API data separately
+  const [rssNews, setRssNews] = useState([]);
+  const [apiNews, setApiNews] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
   const [error, setError] = useState(null);
   const [apiDataLoaded, setApiDataLoaded] = useState(false);
   const [rssDataFetched, setRssDataFetched] = useState(false);
-  const [rssCurrentIndex, setRssCurrentIndex] = useState(0); // Track RSS articles shown
+  const [rssCurrentIndex, setRssCurrentIndex] = useState(0);
+  
+  // In-memory storage for articles (fallback when localStorage isn't available)
+  const [articleStorage, setArticleStorage] = useState({});
   
   // Separate state objects for different sections
   const [expandedFeaturedArticles, setExpandedFeaturedArticles] = useState({});
@@ -24,9 +27,81 @@ const NewsHomepage = () => {
   const [expandedLatestArticles, setExpandedLatestArticles] = useState({});
   
   const [displayCount, setDisplayCount] = useState(6);
-  const [additionalRssArticles, setAdditionalRssArticles] = useState([]); // Only RSS articles for load more
+  const [additionalRssArticles, setAdditionalRssArticles] = useState([]);
   
   const navigate = useNavigate();
+
+  // Helper function to count words
+  const countWords = (text) => {
+    return text ? text.split(/\s+/).length : 0;
+  };
+
+  // Store article function
+  const storeArticle = (article) => {
+    const articleData = {
+      ...article,
+      date: article.date || new Date().toLocaleDateString(),
+      isBreaking: article.isBreaking || false,
+      author: article.author || "News Staff",
+      readTime: article.readTime || `${Math.ceil(countWords(article.summary || '') / 200)} min read`,
+      image: article.image,
+      content: [{
+        subheading: "Full Story",
+        text: article.summary || 'No content available'
+      }],
+      // Standardize category naming
+      category: 'news',
+      subcategory: article.subcategory || 'General News'
+    };
+
+    // Store in component state
+    setArticleStorage(prev => ({
+      ...prev,
+      [article.id]: articleData
+    }));
+
+    try {
+      if (typeof Storage !== 'undefined') {
+        // Store individual article
+        localStorage.setItem(`article_${article.id}`, JSON.stringify(articleData));
+        
+        // Store in newsData array
+        const existingNewsData = JSON.parse(localStorage.getItem('newsData') || '[]');
+        const updatedNewsData = existingNewsData.some(item => item.id === article.id) 
+          ? existingNewsData 
+          : [...existingNewsData, articleData];
+        localStorage.setItem('newsData', JSON.stringify(updatedNewsData));
+        
+        // Store API news separately
+        if (article.source === 'api') {
+          const existingApiData = JSON.parse(localStorage.getItem('apiNewsData') || '[]');
+          const updatedApiData = existingApiData.some(item => item.id === article.id)
+            ? existingApiData
+            : [...existingApiData, articleData];
+          localStorage.setItem('apiNewsData', JSON.stringify(updatedApiData));
+        }
+        
+        // Store RSS news separately
+        if (article.source === 'rss') {
+          const existingRssData = JSON.parse(localStorage.getItem('rssNewsData') || '[]');
+          const updatedRssData = existingRssData.some(item => item.id === article.id)
+            ? existingRssData
+            : [...existingRssData, articleData];
+          localStorage.setItem('rssNewsData', JSON.stringify(updatedRssData));
+        }
+        
+        console.log('Article stored in:', {
+          individual: `article_${article.id}`,
+          newsData: updatedNewsData.length,
+          source: article.source
+        });
+      }
+    } catch (error) {
+      console.error('Storage error:', error);
+    }
+
+    return articleData;
+  };
 
   // Helper function to generate unique IDs to avoid conflicts
   const generateUniqueId = (title, source, index) => {
@@ -88,40 +163,52 @@ const NewsHomepage = () => {
   const processApiData = (apiData) => {
     if (!apiData || apiData.length === 0) return [];
     
-    return apiData.map((item, index) => ({
-      id: generateUniqueId(item.title || 'API Article', 'api', index),
-      title: item.title || 'No title available',
-      summary: item.summary || item.description || 'No description available',
-      image: item.image || `https://source.unsplash.com/800x500/?news,${index}`,
-      date: item.date || new Date().toLocaleDateString(),
-      category: determineCategory(item.title || '', index),
-      readTime: `${Math.max(1, Math.floor((item.summary?.length || item.description?.length || 0) / 200))} min read`,
-      author: item.author || 'News Staff',
-      isBreaking: index % 7 === 0,
-      source: 'api',
-      link: item.link || item.url || '',
-      content: index % 3 === 0 ? generateAdditionalContent() : []
-    }));
+    return apiData.map((item, index) => {
+      const article = {
+        id: generateUniqueId(item.title || 'API Article', 'api', index),
+        title: item.title || 'No title available',
+        summary: item.summary || item.description || 'No description available',
+        image: item.image || `https://source.unsplash.com/800x500/?news,${index}`,
+        date: item.date || new Date().toLocaleDateString(),
+        category: determineCategory(item.title || '', index),
+        readTime: `${Math.max(1, Math.floor((item.summary?.length || item.description?.length || 0) / 200))} min read`,
+        author: item.author || 'News Staff',
+        isBreaking: index % 7 === 0,
+        source: 'api',
+        link: item.link || item.url || '',
+        content: index % 3 === 0 ? generateAdditionalContent() : []
+      };
+      
+      // Store each article
+      storeArticle(article);
+      return article;
+    });
   };
 
   // Process RSS data only
   const processRssData = (rssData) => {
     if (!rssData || rssData.length === 0) return [];
     
-    return rssData.map((item, index) => ({
-      id: generateUniqueId(item.title || 'RSS Article', 'rss', index),
-      title: item.title || 'No title available',
-      summary: item.summary || item.description || 'No description available',
-      image: item.image || `https://source.unsplash.com/800x500/?news,rss,${index}`,
-      date: item.date || new Date().toLocaleDateString(),
-      category: determineCategory(item.title || '', index),
-      readTime: `${Math.max(1, Math.floor((item.summary?.length || item.description?.length || 0) / 200))} min read`,
-      author: item.author || 'BBC News',
-      isBreaking: false,
-      source: 'rss',
-      link: item.link || '',
-      content: generateAdditionalContent()
-    }));
+    return rssData.map((item, index) => {
+      const article = {
+        id: generateUniqueId(item.title || 'RSS Article', 'rss', index),
+        title: item.title || 'No title available',
+        summary: item.summary || item.description || 'No description available',
+        image: item.image || `https://source.unsplash.com/800x500/?news,rss,${index}`,
+        date: item.date || new Date().toLocaleDateString(),
+        category: determineCategory(item.title || '', index),
+        readTime: `${Math.max(1, Math.floor((item.summary?.length || item.description?.length || 0) / 200))} min read`,
+        author: item.author || 'BBC News',
+        isBreaking: false,
+        source: 'rss',
+        link: item.link || '',
+        content: generateAdditionalContent()
+      };
+      
+      // Store each article
+      storeArticle(article);
+      return article;
+    });
   };
 
   // Handle API data loading
@@ -181,11 +268,6 @@ const NewsHomepage = () => {
     }
   };
 
-  // Process combined data once both sources are loaded
-  const processCombinedData = (apiData, rssData) => {
-    // This function is no longer needed since we handle API and RSS separately
-  };
-
   // Check if both data sources are loaded
   useEffect(() => {
     // Only check for API data loading since RSS is loaded on demand
@@ -213,14 +295,14 @@ const NewsHomepage = () => {
     }
   };
 
-  // Toggle functions remain the same but use the new ID system
+  // Toggle functions with localStorage storage
   const toggleExpandFeatured = (article) => {
     // Check if the description is more than 50 words
     const wordCount = article.summary ? article.summary.split(/\s+/).length : 0;
     
     if (wordCount > 50) {
-      // Store article data in localStorage for detail page to access
-      localStorage.setItem(`article_${article.id}`, JSON.stringify(article));
+      // Store article data for detail page to access
+      const storedArticle = storeArticle(article);
       // Navigate to the detail page
       navigate(`/article/${article.id}`);
     } else {
@@ -232,15 +314,14 @@ const NewsHomepage = () => {
     }
   };
 
-
   // Toggle expanded state for a trending article
   const toggleExpandTrending = (article) => {
     // Check if the description is more than 50 words
     const wordCount = article.summary ? article.summary.split(/\s+/).length : 0;
     
     if (wordCount > 50) {
-      // Store article data in localStorage for detail page to access
-      localStorage.setItem(`article_${article.id}`, JSON.stringify(article));
+      // Store article data for detail page to access
+      const storedArticle = storeArticle(article);
       // Navigate to the detail page
       navigate(`/article/${article.id}`);
     } else {
@@ -252,15 +333,14 @@ const NewsHomepage = () => {
     }
   };
 
-
   // Toggle expanded state for a latest article
   const toggleExpandLatest = (article) => {
     // Check if the description is more than 50 words
     const wordCount = article.summary ? article.summary.split(/\s+/).length : 0;
     
     if (wordCount > 50) {
-      // Store article data in localStorage for detail page to access
-      localStorage.setItem(`article_${article.id}`, JSON.stringify(article));
+      // Store article data for detail page to access
+      const storedArticle = storeArticle(article);
       // Navigate to the detail page
       navigate(`/article/${article.id}`);
     } else {
@@ -271,8 +351,6 @@ const NewsHomepage = () => {
       }));
     }
   };
-
-
   
   // Generate additional content sections for detail pages
   const generateAdditionalContent = () => {

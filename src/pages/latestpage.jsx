@@ -71,6 +71,36 @@ const LatestNews = ({ onNavigateToArticle }) => {
       
       console.log("✅ News fetched:", response.documents);
       setNews(response.documents);
+      
+      // Store in localStorage for search
+      try {
+        // Store individual articles
+        response.documents.forEach(article => {
+          const articleData = {
+            ...article,
+            // Ensure consistent format
+            id: article.$id,
+            date: article.$createdAt || new Date().toISOString(),
+            category: article.category || 'Latest',
+            image: getImageUrl(article.featuredimage || article.image || article.thumbnail)
+          };
+          
+          localStorage.setItem(`article_${article.$id}`, JSON.stringify(articleData));
+        });
+        
+        // Also store as latestData array
+        localStorage.setItem('latestData', JSON.stringify(response.documents.map(article => ({
+          ...article,
+          id: article.$id,
+          date: article.$createdAt || new Date().toISOString(),
+          category: article.category || 'Latest',
+          image: getImageUrl(article.featuredimage || article.image || article.thumbnail)
+        }))));
+        
+        console.log('📁 Latest news stored in localStorage');
+      } catch (storageError) {
+        console.error('❌ Error storing latest news:', storageError);
+      }
     } catch (error) {
       console.error('❌ Error fetching news:', error);
     } finally {
@@ -78,7 +108,6 @@ const LatestNews = ({ onNavigateToArticle }) => {
       if (isRefresh) setRefreshing(false);
     }
   };
-
   useEffect(() => {
     fetchNews();
   }, []);

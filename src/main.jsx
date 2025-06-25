@@ -11,6 +11,8 @@ import ArticleDetailPage from './pages/newsdeatil';
 import HealthPage from './pages/healthpage';
 import LatestNews from './pages/latestpage'
 import ReportCrimeForm from './pages/reportCrimeForm';
+import SearchResults from './pages/SearchResults';
+
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -26,6 +28,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="health" element={<HealthPage />} />
           <Route path="latest" element={<LatestNews/>} />
           <Route path="crimeReportForm" element={<ReportCrimeForm/>}/>
+          <Route path="/search" element={<SearchResults />} />
         </Route>
       </Routes>
     </BrowserRouter>

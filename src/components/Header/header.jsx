@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { Container, Logo } from '../index';
-import { FiMenu, FiX, FiChevronDown } from 'react-icons/fi';
+import { FiMenu, FiX, FiSearch } from 'react-icons/fi';
 
 function Header() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const navigate = useNavigate();
 
     // Current date formatting
     const currentDate = new Date().toLocaleDateString('en-US', {
@@ -15,19 +17,25 @@ function Header() {
         day: 'numeric'
     });
 
-    // Secondary nav links - moved to top level since we're using them in both places
+    // Secondary nav links
     const secondaryLinks = [
         { name: 'Home', path: '/' },
         { name: 'Sports', path: '/sports' },
         { name: 'Business', path: '/business' },
         { name: 'Entertainment', path: '/entertainment' },
-        // { name: 'Health', path: '/health' },
-        { name:'Latest', path:'/latest'},
-        // {name : 'IndianSports', path:'/IndianSportsHomepage'}
+        { name: 'Latest', path: '/latest' },
     ];
 
     const toggleDropdown = (index) => {
         setActiveDropdown(activeDropdown === index ? null : index);
+    };
+
+    const handleSearchSubmit = (e) => {
+        e.preventDefault();
+        if (searchQuery.trim()) {
+            navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+            setSearchQuery('');
+        }
     };
 
     return (
@@ -91,6 +99,31 @@ function Header() {
                         </div>
                     </Container>
                 </nav>
+
+                {/* Elegant Search Bar */}
+                <div className="bg-white py-3 shadow-sm border-b border-gray-100">
+                    <Container>
+                        <form onSubmit={handleSearchSubmit} className="max-w-3xl mx-auto px-2 sm:px-0">
+                            <div className="relative flex items-center">
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search for news..."
+                                    className="w-full pl-4 pr-12 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-800 transition-all duration-200 placeholder-gray-400"
+                                    aria-label="Search news"
+                                />
+                                <button
+                                    type="submit"
+                                    className="absolute right-2 bg-red-600 text-white p-2 rounded-md hover:bg-red-700 transition-colors duration-200 flex items-center justify-center"
+                                    aria-label="Submit search"
+                                >
+                                    <FiSearch className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </form>
+                    </Container>
+                </div>
             </header>
 
             {/* Explore Side Menu */}

@@ -23,25 +23,73 @@ const Entertainment = () => {
   const navigate = useNavigate();
   const [featuredContent, setFeaturedContent] = useState([]);
   const [latestContent, setLatestContent] = useState([]);
-  const [rssContent, setRssContent] = useState([]); // New state for RSS content
+  const [rssContent, setRssContent] = useState([]);
   const [trendingContent, setTrendingContent] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingRss, setIsLoadingRss] = useState(false); // New state for RSS loading
+  const [isLoadingRss, setIsLoadingRss] = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
   const [error, setError] = useState(null);
   const [expandedArticles, setExpandedArticles] = useState({});
   const [displayCount, setDisplayCount] = useState(6);
-  const [showRssData, setShowRssData] = useState(false); // New state to track if RSS data should be shown
-  const [rssDataLoaded, setRssDataLoaded] = useState(false); // Track if RSS data has been loaded
+  const [showRssData, setShowRssData] = useState(false);
+  const [rssDataLoaded, setRssDataLoaded] = useState(false);
+  
+  // In-memory storage for articles (fallback when localStorage isn't available)
+  const [articleStorage, setArticleStorage] = useState({});
 
   // Debug log to check if loadMoreContent is called
   console.log(`Current display count: ${displayCount}`);
 
+  // Helper function to count words
+  const countWords = (str) => {
+    if (!str) return 0;
+    return str.split(/\s+/).filter(Boolean).length;
+  };
+
   // Helper function to check if content has more than 50 words
   const hasMoreThan50Words = (text) => {
     if (!text) return false;
-    const wordCount = text.split(/\s+/).filter(word => word.length > 0).length;
+    const wordCount = countWords(text);
     return wordCount > 50;
+  };
+
+  // Function to store article data (similar to sports page)
+  const storeArticle = (article) => {
+    const articleData = {
+      ...article,
+      date: article.date || new Date().toLocaleDateString(),
+      author: article.author || 'Entertainment Reporter',
+      readTime: article.readTime || `${Math.ceil(countWords(article.summary || '') / 200)} min read`,
+      content: article.summary || article.content || 'No content available',
+      category: 'Entertainment',
+      subcategory: article.subcategory || 'General'
+    };
+    
+    // Store in component state as fallback
+    setArticleStorage(prev => ({
+      ...prev,
+      [article.id]: articleData
+    }));
+    
+    // Try to store in localStorage if available
+    try {
+      if (typeof Storage !== 'undefined') {
+        localStorage.setItem(`article_${article.id}`, JSON.stringify(articleData));
+        
+        // Store in entertainment category cache as well
+        const existingEntertainmentData = JSON.parse(localStorage.getItem('entertainmentData') || '[]');
+        const updatedEntertainmentData = existingEntertainmentData.some(item => item.id === article.id) 
+          ? existingEntertainmentData 
+          : [...existingEntertainmentData, articleData];
+        localStorage.setItem('entertainmentData', JSON.stringify(updatedEntertainmentData));
+        
+        console.log('Article stored in localStorage:', article.id);
+      }
+    } catch (error) {
+      console.warn('localStorage not available, using in-memory storage');
+    }
+    
+    return articleData;
   };
 
   // Helper function to get button text based on word count
@@ -49,7 +97,7 @@ const Entertainment = () => {
     const moreThan50Words = hasMoreThan50Words(content.summary);
     
     if (moreThan50Words) {
-      return isExpanded ? 'Show less' : 'View full article';
+      return 'View full article';
     } else {
       return isExpanded ? 'Show less' : 'Read more';
     }
@@ -57,19 +105,12 @@ const Entertainment = () => {
 
   const handleReadMore = (content) => {
     // Check if content description is more than 50 words
-    const wordCount = content.summary.split(/\s+/).length;
+    const wordCount = countWords(content.summary);
     
     if (wordCount > 50) {
-      // Store article data in localStorage before navigation
-      localStorage.setItem(`article_${content.id}`, JSON.stringify({
-        ...content,
-        content: [
-          {
-            subheading: "Full Story",
-            text: content.summary
-          }
-        ]
-      }));
+      // Store article data before navigation
+      const storedArticle = storeArticle(content);
+      console.log("Stored article:", storedArticle);
       
       // Navigate to article detail page
       navigate(`/article/${content.id}`);
@@ -116,6 +157,11 @@ const Entertainment = () => {
         
         setRssContent(processedRssData);
         setRssDataLoaded(true);
+        
+        // Store RSS articles in localStorage
+        processedRssData.forEach(article => {
+          storeArticle(article);
+        });
       }
     } catch (error) {
       console.error('Error processing RSS data:', error);
@@ -167,6 +213,11 @@ const Entertainment = () => {
       
       console.log(`Latest content count: ${extendedData.slice(6, 30).length}`); // Debug log
       
+      // Store all articles in localStorage
+      extendedData.forEach(article => {
+        storeArticle(article);
+      });
+      
       // Create completely different trending content for sidebar
       setTrendingContent([
         {
@@ -216,12 +267,41 @@ const Entertainment = () => {
         }
       ]);
       
+      // Store trending content as well
+      setTrendingContent(prev => {
+        prev.forEach(article => storeArticle(article));
+        return prev;
+      });
+      
       setError(null);
     } catch (err) {
       console.error('Error processing entertainment data:', err);
       setError('Unable to load entertainment content. Please try again later.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Function to refresh entertainment data (similar to sports page)
+  const refreshEntertainment = () => {
+    setIsLoading(true);
+    setFeaturedContent([]);
+    setLatestContent([]);
+    setRssContent([]);
+    setTrendingContent([]);
+    setArticleStorage({}); // Clear article storage
+    setRssDataLoaded(false);
+    setShowRssData(false);
+    setDisplayCount(6);
+    
+    // Clear localStorage entertainment data if needed
+    try {
+      if (typeof Storage !== 'undefined') {
+        localStorage.removeItem('entertainmentData');
+        console.log('Entertainment localStorage data cleared');
+      }
+    } catch (error) {
+      console.warn('Could not clear localStorage');
     }
   };
 
@@ -249,8 +329,8 @@ const Entertainment = () => {
         <h2 className="text-2xl font-bold text-white mb-3">Showtime Interrupted!</h2>
         <p className="text-gray-300 mb-6">We're experiencing technical difficulties backstage. The show will go on shortly!</p>
         <button 
-          onClick={() => window.location.reload()} 
-          className="bg-pink-600 hover:bg-pink-700 text-white font-medium py-2 px-6 rounded-full transition duration-300 shadow-lg hover:shadow-pink-500/30"
+          onClick={refreshEntertainment} 
+          className="bg-pink-600 hover:bg-pink-700 text-white font-medium py-2 px-6 rounded-full transition duration-300 shadow-lg hover:shadow-pink-500/30 cursor-pointer"
         >
           Refresh Page
         </button>
@@ -282,7 +362,6 @@ const Entertainment = () => {
     
     return contentToShow;
   };
-
   return (
     <div className="bg-gradient-to-b from-purple-900 to-black min-h-screen text-white">
       <EntertainmentApi onDataLoaded={handleDataLoaded} />

@@ -30,6 +30,9 @@ const ShareMarket = () => {
   const [displayCount, setDisplayCount] = useState(6);
   const [rssLoadCount, setRssLoadCount] = useState(0);
   const [hasLoadedRss, setHasLoadedRss] = useState(false);
+  
+  // In-memory storage for articles (fallback when localStorage isn't available)
+  const [articleStorage, setArticleStorage] = useState({});
 
   // Debug log to check if loadMoreContent is called and the current display count
   useEffect(() => {
@@ -44,6 +47,60 @@ const ShareMarket = () => {
     return text.split(/\s+/).filter(word => word.length > 0).length;
   };
 
+ const storeArticle = (article) => {
+  const articleData = {
+    ...article,
+    date: article.date || new Date().toLocaleDateString(),
+    isBreaking: article.isHot || false,
+    author: article.author || "Market Analyst",
+    readTime: article.readTime || `${Math.ceil(countWords(article.summary || '') / 200)} min read`,
+    image: article.image,
+    content: [{
+      subheading: "Market Analysis",
+      text: article.summary || 'No content available'
+    }],
+    // Standardize category naming
+    category: 'business', // Changed from 'ShareMarket' to match search expectations
+    subcategory: article.subcategory || 'Market News'
+  };
+  
+  // Store in component state
+  setArticleStorage(prev => ({
+    ...prev,
+    [article.id]: articleData
+  }));
+  
+  try {
+    if (typeof Storage !== 'undefined') {
+      // Store individual article
+      localStorage.setItem(`article_${article.id}`, JSON.stringify(articleData));
+      
+      // Store in both businessData and shareMarketData for compatibility
+      const existingBusinessData = JSON.parse(localStorage.getItem('businessData') || '[]');
+      const updatedBusinessData = existingBusinessData.some(item => item.id === article.id) 
+        ? existingBusinessData 
+        : [...existingBusinessData, articleData];
+      localStorage.setItem('businessData', JSON.stringify(updatedBusinessData));
+      
+      // Maintain shareMarketData for backward compatibility
+      const existingShareMarketData = JSON.parse(localStorage.getItem('shareMarketData') || '[]');
+      const updatedShareMarketData = existingShareMarketData.some(item => item.id === article.id) 
+        ? existingShareMarketData 
+        : [...existingShareMarketData, articleData];
+      localStorage.setItem('shareMarketData', JSON.stringify(updatedShareMarketData));
+      
+      console.log('Article stored in:', {
+        individual: `article_${article.id}`,
+        businessData: updatedBusinessData.length,
+        shareMarketData: updatedShareMarketData.length
+      });
+    }
+  } catch (error) {
+    console.error('Storage error:', error);
+  }
+  
+  return articleData;
+};
   // Function to get button text based on word count and expanded state
   const getButtonText = (article, section, sectionSpecificId) => {
     const wordCount = countWords(article.summary);
@@ -63,19 +120,9 @@ const ShareMarket = () => {
     
     // Check if the description has more than 50 words
     if (countWords(article.summary) > 50) {
-      // Store article in localStorage before navigating
-      localStorage.setItem(`article_${article.id}`, JSON.stringify({
-        ...article,
-        date: article.date || new Date().toLocaleDateString(),
-        isBreaking: article.isHot,
-        author: article.author || "Market Analyst",
-        readTime: article.readTime || "2 min read",
-        image: article.image,
-        content: [{
-          subheading: "Market Analysis",
-          text: article.summary
-        }]
-      }));
+      // Store article data before navigating
+      const storedArticle = storeArticle(article);
+      console.log("Stored article for navigation:", storedArticle);
       
       // Navigate to the article detail page
       navigate(`/article/${article.id}`);
@@ -93,27 +140,27 @@ const ShareMarket = () => {
   };
 
   // Update the loadMoreContent function:
-const loadMoreContent = () => {
-  setIsLoadingMore(true);
-  
-  // If we have RSS data that hasn't been displayed yet
-  if (rssNewsData.length > 0 && rssLoadCount < rssNewsData.length) {
-    const nextBatch = rssNewsData.slice(rssLoadCount, rssLoadCount + 4);
-    setDisplayedRssNews(prev => [...prev, ...nextBatch]);
-    setRssLoadCount(prev => prev + 4);
-    setIsLoadingMore(false);
-    return;
-  }
-  
-  // If we haven't loaded RSS data yet, trigger the fetch
-  if (!hasLoadedRss) {
-    setHasLoadedRss(true);
-  } else {
-    // If we've already loaded all RSS data, just increase display count for API content
-    setDisplayCount(prev => prev + 4);
-    setIsLoadingMore(false);
-  }
-};
+  const loadMoreContent = () => {
+    setIsLoadingMore(true);
+    
+    // If we have RSS data that hasn't been displayed yet
+    if (rssNewsData.length > 0 && rssLoadCount < rssNewsData.length) {
+      const nextBatch = rssNewsData.slice(rssLoadCount, rssLoadCount + 4);
+      setDisplayedRssNews(prev => [...prev, ...nextBatch]);
+      setRssLoadCount(prev => prev + 4);
+      setIsLoadingMore(false);
+      return;
+    }
+    
+    // If we haven't loaded RSS data yet, trigger the fetch
+    if (!hasLoadedRss) {
+      setHasLoadedRss(true);
+    } else {
+      // If we've already loaded all RSS data, just increase display count for API content
+      setDisplayCount(prev => prev + 4);
+      setIsLoadingMore(false);
+    }
+  };
 
   const handleDataLoaded = (apiData) => {
     try {
@@ -136,8 +183,8 @@ const loadMoreContent = () => {
             id: originalItem.id + apiData.length + i, // Ensure unique IDs
             title: originalItem.title ? `${originalItem.title} - Extended Data ${i+1}` : 'No title available',
             summary: originalItem.summary ? 
-              `${originalItem.summary.substring(0, 50)}... Additional market analysis for extended article ${i+1}. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam euismod, nisl eget aliquam ultricies, nunc nisl aliquet nunc, quis aliquam nisl nunc quis nisl. Sed euismod, nisl eget aliquam ultricies, nunc nisl aliquet nunc, quis aliquam nisl nunc quis nisl. This is a long description to ensure it exceeds 50 words for testing the redirect functionality. The market has been volatile lately with significant swings in both directions. Analysts are divided on whether we're seeing a temporary correction or the beginning of a more sustained bearish trend. Investors should consider their risk tolerance and investment timeline before making any major decisions.` : 
-              'No description available with sufficient length to test our redirect functionality. This text should be long enough to exceed 50 words and trigger the redirect to the detail page when the read more button is clicked. The market analysis suggests caution in the current environment.',
+              `${originalItem.summary.substring(0, 50)} ${i+1}` : 
+              '',
             stockChange: stockChange,
             stockPrice: `$${(Math.random() * 1000 + 10).toFixed(2)}`,
             stockVolume: `${(Math.random() * 10).toFixed(1)}M`
@@ -165,12 +212,19 @@ const loadMoreContent = () => {
       }));
       
       // Use first 6 items for featured stocks
-      setFeaturedStocks(processedData.slice(0, 6));
+      const featuredData = processedData.slice(0, 6);
+      setFeaturedStocks(featuredData);
       
       // Store all latest content, but only display based on displayCount
-      setLatestMarketNews(processedData.slice(6, 30)); // Ensuring we have more content items available
+      const latestData = processedData.slice(6, 30);
+      setLatestMarketNews(latestData);
       
-      console.log(`Latest market news count: ${processedData.slice(6, 30).length}`); // Debug log
+      // Store all articles in localStorage
+      [...featuredData, ...latestData].forEach(article => {
+        storeArticle(article);
+      });
+      
+      console.log(`Latest market news count: ${latestData.length}`);
       
       setError(null);
       setIsLoading(false);
@@ -207,11 +261,70 @@ const loadMoreContent = () => {
 
     setRssNewsData(processedRssData);
     
+    // Store RSS articles in localStorage
+    processedRssData.forEach(article => {
+      storeArticle(article);
+    });
+    
     // Load first batch of RSS news
     const firstBatch = processedRssData.slice(0, 4);
     setDisplayedRssNews(firstBatch);
     setRssLoadCount(4);
     setIsLoadingMore(false);
+  };
+
+  // Store articles when they're loaded/updated
+  useEffect(() => {
+    if (featuredStocks.length > 0) {
+      featuredStocks.forEach(article => {
+        if (!articleStorage[article.id]) {
+          storeArticle(article);
+        }
+      });
+    }
+  }, [featuredStocks]);
+
+  useEffect(() => {
+    if (latestMarketNews.length > 0) {
+      latestMarketNews.forEach(article => {
+        if (!articleStorage[article.id]) {
+          storeArticle(article);
+        }
+      });
+    }
+  }, [latestMarketNews]);
+
+  useEffect(() => {
+    if (displayedRssNews.length > 0) {
+      displayedRssNews.forEach(article => {
+        if (!articleStorage[article.id]) {
+          storeArticle(article);
+        }
+      });
+    }
+  }, [displayedRssNews]);
+
+  // Function to refresh news and clear storage
+  const refreshNews = () => {
+    setIsLoading(true);
+    setFeaturedStocks([]);
+    setLatestMarketNews([]);
+    setRssNewsData([]);
+    setDisplayedRssNews([]);
+    setDisplayCount(6);
+    setRssLoadCount(0);
+    setHasLoadedRss(false);
+    setArticleStorage({});
+    
+    // Clear localStorage
+    try {
+      if (typeof Storage !== 'undefined') {
+        localStorage.removeItem('shareMarketData');
+        console.log('ShareMarket localStorage cleared');
+      }
+    } catch (error) {
+      console.warn('Could not clear localStorage');
+    }
   };
 
   const LoadingSkeleton = () => (
@@ -237,7 +350,7 @@ const loadMoreContent = () => {
         <h2 className="text-2xl font-bold text-white mb-3">Market Data Unavailable!</h2>
         <p className="text-gray-300 mb-6">We're experiencing technical difficulties with our market data feed. Please try again shortly!</p>
         <button 
-          onClick={() => window.location.reload()} 
+          onClick={refreshNews} 
           className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-full transition duration-300 shadow-lg hover:shadow-blue-500/30"
         >
           Refresh Page
@@ -278,9 +391,6 @@ const loadMoreContent = () => {
               e.target.src = `https://source.unsplash.com/random/300x200/?business,news,${content.id}`;
             }}
           />
-          {/* <div className="absolute top-2 right-2 bg-orange-500 text-white px-2 py-1 text-xs font-bold rounded">
-            RSS NEWS
-          </div> */}
         </div>
         <div className="p-4 md:p-6 flex-1">
           <div className="flex justify-between items-start mb-2">
@@ -484,16 +594,6 @@ const loadMoreContent = () => {
               
               {/* RSS-sourced news */}
               {displayedRssNews.map(content => renderRssNewsCard(content))}
-              
-              {/* Loading indicator for RSS content */}
-              {/* {isLoadingMore && (
-                <div className="flex justify-center py-8">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
-                    <span className="text-gray-600">Loading latest...</span>
-                  </div>
-                </div>
-              )} */}
               
               {/* Show Load More button */}
               {(getFilteredMarketNews().length > displayCount || rssLoadCount < rssNewsData.length || !hasLoadedRss) && (
