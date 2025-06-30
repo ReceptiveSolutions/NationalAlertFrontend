@@ -84,7 +84,7 @@ const TimesOfIndiaBusinessFetcher = ({ onDataLoaded, shouldFetch }) => {
             {
               id: `toi_fallback_${Date.now()}`,
               title: "Unable to load Business news",
-              summary: "There was an issue connecting to the Times of India business feed. Please check your internet connection or try again later.",
+              summary: "There was an issue connecting to the business feed. Please check your internet connection or try again later.",
               image: "https://source.unsplash.com/800x500/?business,error",
               date: new Date().toLocaleDateString(),
               author: 'System',

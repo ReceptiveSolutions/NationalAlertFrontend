@@ -117,7 +117,7 @@ const SportsPage = () => {
           fallbackData.push({
             id: i,
             title: `${category} News: This is a placeholder headline for ${category} news story ${i+1}`,
-            summary: `This is placeholder content for a sports article that couldn't be loaded. This would normally contain a summary of the latest ${category.toLowerCase()} news. The article would include detailed information about recent matches, player performances, upcoming tournaments, and other relevant information from the world of ${category.toLowerCase()}.`,
+            summary: `This is placeholder content for a sports article that couldn't be loaded. `,
             image: `https://source.unsplash.com/random/800x500/?${category.toLowerCase()},sports`,
             date: new Date().toLocaleDateString(),
             category: 'Sports',

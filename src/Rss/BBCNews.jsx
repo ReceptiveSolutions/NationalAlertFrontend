@@ -84,7 +84,7 @@ const BBCNewsFetcher = ({ onDataLoaded }) => {
           {
             id: 0,
             title: "Unable to load BBC RSS feed",
-            summary: "There was an issue connecting to the BBC news feed. Please check your internet connection or try again later.",
+            summary: "There was an issue connecting . Please check your internet connection or try again later.",
             image: "https://source.unsplash.com/800x500/?news,error",
             date: new Date().toLocaleDateString(),
             author: 'System',

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiCalendar, FiUser, FiShare2 } from 'react-icons/fi';
+import { FiArrowLeft, FiCalendar, FiUser, FiShare2, FiExternalLink, FiInfo } from 'react-icons/fi';
 import DOMPurify from 'dompurify';
 import { storage } from '../appwrite/appwriteConfig';
 import conf from '../conf/conf';
@@ -12,11 +12,92 @@ const ArticleDetailPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const renderContent = (content) => {
-    try {
-      if (!content) return null;
+  // Check if content is actually available or just a placeholder
+  const isContentAvailable = (content) => {
+    if (!content) return false;
+    
+    const unavailableMessages = [
+      'ONLY AVAILABLE IN PAID PLANS',
+      'ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS',
+      'Content not available',
+      'Full article not available'
+    ];
+    
+    if (typeof content === 'string') {
+      return !unavailableMessages.some(msg => content.includes(msg));
+    }
+    
+    return true;
+  };
 
-      // Handle HTML strings
+  // Enhanced content renderer that handles unavailable content
+  const renderContent = (content, description) => {
+    try {
+      if (!content || !isContentAvailable(content)) {
+        // If content is not available, show description with a notice
+        return (
+          <div className="space-y-6">
+            {/* Content Unavailable Notice */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 sm:p-6">
+              <div className="flex items-start">
+                <FiInfo className="w-5 h-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-amber-800 mb-2">
+                    Full Article Content Not Available
+                  </h3>
+                  <p className="text-sm text-amber-700 mb-3">
+                    The complete article content is not available through our current data source. 
+                    You can read the full article by visiting the original source.
+                  </p>
+                  {article.link && (
+                    <a
+                      href={article.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-sm font-medium text-amber-800 hover:text-amber-900 underline"
+                    >
+                      Read Full Article
+                      <FiExternalLink className="ml-1 w-4 h-4" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Show description as preview */}
+            {description && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Article Summary</h3>
+                <p className="text-sm sm:text-base lg:text-lg text-gray-700 leading-relaxed sm:leading-loose">
+                  {description}
+                </p>
+              </div>
+            )}
+
+            {/* Call to action */}
+            <div className="bg-gray-50 rounded-lg p-4 sm:p-6 text-center">
+              <p className="text-gray-600 mb-4">
+                Want to read the complete article?
+              </p>
+              {article.link ? (
+                <a
+                  href={article.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
+                >
+                  Visit Original Source
+                  <FiExternalLink className="ml-2 w-4 h-4" />
+                </a>
+              ) : (
+                <p className="text-sm text-gray-500">Original source link not available</p>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      // If content is available, render it normally
       if (typeof content === 'string' && content.startsWith('<')) {
         return (
           <div 
@@ -26,7 +107,6 @@ const ArticleDetailPage = () => {
         );
       }
 
-      // Handle simple string (split into paragraphs)
       if (typeof content === 'string') {
         const paragraphs = content.split('\n\n').filter(p => p.trim().length > 0);
         return paragraphs.map((paragraph, index) => (
@@ -36,7 +116,6 @@ const ArticleDetailPage = () => {
         ));
       }
 
-      // Handle array of content
       if (Array.isArray(content)) {
         return content.map((item, index) => {
           if (typeof item === 'string') {
@@ -66,7 +145,6 @@ const ArticleDetailPage = () => {
         });
       }
 
-      // Fallback for other objects
       if (typeof content === 'object') {
         return (
           <pre className="whitespace-pre-wrap text-xs sm:text-sm bg-gray-50 p-3 sm:p-4 rounded-lg overflow-x-auto max-w-full">
@@ -139,7 +217,7 @@ const ArticleDetailPage = () => {
             return;
           } catch (parseError) {
             console.error('Error parsing stored article:', parseError);
-            localStorage.removeItem(`article_${id}`); // Remove corrupted data
+            localStorage.removeItem(`article_${id}`);
           }
         }
 
@@ -166,14 +244,12 @@ const ArticleDetailPage = () => {
 
         if (foundArticle) {
           setArticle(foundArticle);
-          // Store for future use
           localStorage.setItem(`article_${id}`, JSON.stringify(foundArticle));
         } else {
           // Last resort: try the API call with better error handling
           try {
             const response = await fetch(`/api/articles/${id}`);
             
-            // Check if response is actually JSON
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
               throw new Error('Server returned non-JSON response (likely 404 or 500 error page)');
@@ -233,11 +309,28 @@ const ArticleDetailPage = () => {
   };
 
   const handleBackClick = () => {
-    // Try to go back to the previous page, or default to home
     if (window.history.length > 1) {
       navigate(-1);
     } else {
       navigate('/');
+    }
+  };
+
+  // Format date helper
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Date not available';
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString; // Return original if invalid
+      
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return dateString;
     }
   };
 
@@ -322,17 +415,17 @@ const ArticleDetailPage = () => {
             <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-900 mb-4 sm:mb-6 leading-tight sm:leading-tight md:leading-tight">
               {article.title}
             </h1>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 mb-4">
               <span className="flex items-center">
                 <FiCalendar className="mr-1.5 w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                <span className="truncate">{article.date}</span>
+                <span className="truncate">{formatDate(article.date || article.pubDate)}</span>
               </span>
-              {/* {article.author && (
+              {article.source_name && (
                 <span className="flex items-center">
-                  <FiUser className="mr-1.5 w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                  <span className="truncate">{article.author}</span>
+                  <span className="text-gray-400 hidden sm:inline">•</span>
+                  <span className="truncate sm:ml-2">{article.source_name}</span>
                 </span>
-              )} */}
+              )}
             </div>
           </header>
 
@@ -374,18 +467,9 @@ const ArticleDetailPage = () => {
 
           {/* Article Content */}
           <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border p-4 sm:p-6 lg:p-8 w-full">
-            {article.summary && (
-              <div className="mb-6 sm:mb-8 pb-6 sm:pb-8 border-b border-gray-100">
-                <p className="text-sm sm:text-base lg:text-lg xl:text-xl text-gray-800 leading-relaxed sm:leading-loose font-medium">
-                  {article.summary}
-                </p>
-              </div>
-            )}
-            
-            {/* Main Content with Better Typography */}
             <div className="max-w-none">
               <div className="text-gray-900 leading-relaxed sm:leading-loose">
-                {renderContent(article.content)}
+                {renderContent(article.content, article.description)}
               </div>
             </div>
           </div>

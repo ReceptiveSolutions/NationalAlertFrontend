@@ -79,7 +79,7 @@ const TimesOfIndiaEntertainmentFetcher = ({ onDataLoaded }) => {
           {
             id: 0,
             title: "Unable to load Entertainment news",
-            summary: "There was an issue connecting to the Times of India entertainment feed. Please check your internet connection or try again later.",
+            summary: "There was an issue connecting to the entertainment feed. Please check your internet connection or try again later.",
             image: "https://source.unsplash.com/800x500/?entertainment,error",
             date: new Date().toLocaleDateString(),
             author: 'System',
