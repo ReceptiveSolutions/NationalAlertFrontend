@@ -4,10 +4,10 @@ import { databases, storage } from '../appwrite/appwriteConfig';
 import conf from '../conf/conf';
 import { 
   RefreshCw, 
-  Clock, 
+ 
   ArrowRight, 
   Newspaper, 
-  TrendingUp,
+  
   Eye,
   User,
   Calendar,
@@ -15,6 +15,7 @@ import {
   BookOpen,
   Image as ImageIcon
 } from 'lucide-react';
+import LpageCards from '../components/Cards/LatesPageCards/lpageCards'
 
 const LatestNews = ({ onNavigateToArticle }) => {
   const [news, setNews] = useState([]);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SportsApi from '../api/sportsnews';
 import { Newspaper } from 'lucide-react';
+import { CardSM } from '../components/index';
 
 const SportsPage = () => {
   const navigate = useNavigate();

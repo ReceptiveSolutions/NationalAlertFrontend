@@ -1,48 +1,47 @@
-import React from 'react';
-import { 
-  FiStar, 
-  FiFilm, 
-  FiTv, 
-  FiMusic, 
-  FiAward,
-  FiChevronDown,
-  FiChevronUp
-} from 'react-icons/fi';
+import React, { useState } from 'react';
+import { FiExternalLink, FiChevronUp, FiChevronDown, FiStar } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 
-const FeaturedCard = ({ 
-  content, 
-  index, 
-  isExpanded, 
-  onReadMore, 
-  onToggleExpand 
-}) => {
-  const categoryIcons = {
-    'Movies': <FiFilm className="mr-2" />,
-    'TV Shows': <FiTv className="mr-2" />,
-    'Music': <FiMusic className="mr-2" />,
-    'Awards': <FiAward className="mr-2" />,
-    'General': <FiStar className="mr-2" />
-  };
+function EheroCards({ content, index, onStoreArticle, categoryIcons = {} }) {
+  const [expanded, setExpanded] = useState(false);
+  const navigate = useNavigate();
 
+  // Check if summary has more than 50 words
   const hasMoreThan50Words = (text) => {
-    if (!text) return false;
-    const wordCount = text.split(/\s+/).filter(word => word.length > 0).length;
+    const wordCount = text ? text.split(/\s+/).length : 0;
     return wordCount > 50;
   };
 
+  // Get button text based on content length and expansion state
   const getButtonText = (content, isExpanded) => {
-    const moreThan50Words = hasMoreThan50Words(content.summary);
+    if (hasMoreThan50Words(content.summary)) {
+      return "View full article ";
+    }
+    return isExpanded ? "Read less " : "Read more ";
+  };
+
+  // Handle read more functionality
+  const handleReadMore = () => {
+    const wordCount = content.summary ? content.summary.split(/\s+/).length : 0;
     
-    if (moreThan50Words) {
-      return isExpanded ? 'Show less' : 'View full article';
+    if (wordCount > 50) {
+      // Store article data for detail page to access
+      if (onStoreArticle) {
+        onStoreArticle(content);
+      }
+      // Navigate to the detail page
+      navigate(`/article/${content.id}`);
     } else {
-      return isExpanded ? 'Show less' : 'Read more';
+      // For shorter articles, just toggle expansion in-place
+      setExpanded(prev => !prev);
     }
   };
 
   return (
     <div 
-      className={`bg-black bg-opacity-40 shadow-md overflow-hidden rounded-xl backdrop-blur-sm hover:shadow-lg transition-all duration-300 hover:scale-[1.02] ${index < 2 ? 'lg:col-span-2' : ''}`}
+      className={`bg-black bg-opacity-40 shadow-md overflow-hidden rounded-xl backdrop-blur-sm hover:shadow-lg transition-all duration-300 hover:scale-[1.02] ${
+        index < 2 ? 'lg:col-span-2' : ''
+      }`}
     >
       <div className="relative">
         <img 
@@ -50,7 +49,7 @@ const FeaturedCard = ({
           alt={content.title} 
           className={`w-full ${index < 2 ? 'h-72' : 'h-40'} object-cover`}
           onError={(e) => {
-            e.target.src = `https://source.unsplash.com/random/800x500/?${content.subcategory.toLowerCase()},entertainment`;
+            e.target.src = `https://source.unsplash.com/random/800x500/?${content.subcategory?.toLowerCase()},entertainment`;
           }}
         />
         {content.isHot && (
@@ -74,7 +73,7 @@ const FeaturedCard = ({
           {content.title}
         </h2>
         <div className="text-sm text-gray-300 mb-3">
-          {isExpanded ? (
+          {expanded ? (
             <p>{content.summary.length > 150 ? content.summary.substring(0, 150) + "..." : content.summary}</p>
           ) : (
             <p className="line-clamp-2">{content.summary}</p>
@@ -83,11 +82,13 @@ const FeaturedCard = ({
         
         <div className="flex justify-between items-center">
           <button 
-            onClick={() => onReadMore(content)}
+            onClick={handleReadMore}
             className="text-pink-400 hover:text-pink-300 text-xs font-medium flex items-center cursor-pointer"
           >
-            {getButtonText(content, isExpanded)}
-            {isExpanded ? (
+            {getButtonText(content, expanded)}
+            {hasMoreThan50Words(content.summary) ? (
+              <FiExternalLink className="ml-1" size={14} />
+            ) : expanded ? (
               <FiChevronUp className="ml-1" size={14} />
             ) : (
               <FiChevronDown className="ml-1" size={14} />
@@ -97,6 +98,6 @@ const FeaturedCard = ({
       </div>
     </div>
   );
-};
+}
 
-export default FeaturedCard;
+export default EheroCards;

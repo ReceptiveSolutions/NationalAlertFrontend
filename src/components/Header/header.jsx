@@ -55,7 +55,7 @@ function Header() {
                                 aria-label="Explore categories"
                             >
                                 <FiMenu className="h-3 w-3 sm:h-4 sm:w-4" />
-                                <span className="hidden xs:inline">Explore</span>
+                                <span className="hidden xs:inline">Explore</span> 
                             </button>
                             
                             {/* Date - Progressive visibility */}
