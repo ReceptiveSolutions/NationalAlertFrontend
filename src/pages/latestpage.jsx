@@ -1,21 +1,19 @@
-import React, { useEffect, useState } from 'react';
-import { Query } from 'appwrite';
-import { databases, storage } from '../appwrite/appwriteConfig';
-import conf from '../conf/conf';
-import { 
-  RefreshCw, 
- 
-  ArrowRight, 
-  Newspaper, 
-  
+import React, { useEffect, useState } from "react";
+import { Query } from "appwrite";
+import { databases, storage } from "../appwrite/appwriteConfig";
+import conf from "../conf/conf";
+import {
+  RefreshCw,
+  ArrowRight,
+  Newspaper,
   Eye,
   User,
   Calendar,
   Hash,
   BookOpen,
-  Image as ImageIcon
-} from 'lucide-react';
-import LpageCards from '../components/Cards/LatesPageCards/lpageCards'
+  Image as ImageIcon,
+} from "lucide-react";
+import LpageCards from "../components/Cards/LatesPageCards/lpageCards";
 
 const LatestNews = ({ onNavigateToArticle }) => {
   const [news, setNews] = useState([]);
@@ -29,33 +27,33 @@ const LatestNews = ({ onNavigateToArticle }) => {
       if (!imageId) {
         return null;
       }
-      
+
       // If it's already a URL, return it
-      if (typeof imageId === 'string' && imageId.startsWith('http')) {
+      if (typeof imageId === "string" && imageId.startsWith("http")) {
         return imageId;
       }
-      
+
       // Handle object type
-      if (typeof imageId === 'object' && imageId !== null) {
+      if (typeof imageId === "object" && imageId !== null) {
         return imageId.url || imageId.src || imageId.href || null;
       }
-      
+
       // Use Appwrite storage.getFileView (same as ArticleDetailPage)
       if (imageId && conf.appwriteBucketId) {
         try {
           const viewUrl = storage.getFileView(conf.appwriteBucketId, imageId);
-          if (typeof viewUrl === 'string') return viewUrl;
+          if (typeof viewUrl === "string") return viewUrl;
           if (viewUrl?.href) return viewUrl.href;
           return viewUrl?.toString() || null;
         } catch (error) {
-          console.error('Error generating Appwrite URL:', error);
+          console.error("Error generating Appwrite URL:", error);
           return null;
         }
       }
-      
+
       return null;
     } catch (error) {
-      console.error('Error in getImageUrl:', error);
+      console.error("Error in getImageUrl:", error);
       return null;
     }
   };
@@ -63,47 +61,59 @@ const LatestNews = ({ onNavigateToArticle }) => {
   const fetchNews = async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
-      
+
       const response = await databases.listDocuments(
         conf.appwriteDatabaseId,
         conf.appwriteCollectionId,
-        [Query.orderDesc('$createdAt')]
+        [Query.orderDesc("$createdAt")]
       );
-      
+
       console.log("✅ News fetched:", response.documents);
       setNews(response.documents);
-      
+
       // Store in localStorage for search
       try {
         // Store individual articles
-        response.documents.forEach(article => {
+        response.documents.forEach((article) => {
           const articleData = {
             ...article,
             // Ensure consistent format
             id: article.$id,
             date: article.$createdAt || new Date().toISOString(),
-            category: article.category || 'Latest',
-            image: getImageUrl(article.featuredimage || article.image || article.thumbnail)
+            category: article.category || "Latest",
+            image: getImageUrl(
+              article.featuredimage || article.image || article.thumbnail
+            ),
           };
-          
-          localStorage.setItem(`article_${article.$id}`, JSON.stringify(articleData));
+
+          localStorage.setItem(
+            `article_${article.$id}`,
+            JSON.stringify(articleData)
+          );
         });
-        
+
         // Also store as latestData array
-        localStorage.setItem('latestData', JSON.stringify(response.documents.map(article => ({
-          ...article,
-          id: article.$id,
-          date: article.$createdAt || new Date().toISOString(),
-          category: article.category || 'Latest',
-          image: getImageUrl(article.featuredimage || article.image || article.thumbnail)
-        }))));
-        
-        console.log('📁 Latest news stored in localStorage');
+        localStorage.setItem(
+          "latestData",
+          JSON.stringify(
+            response.documents.map((article) => ({
+              ...article,
+              id: article.$id,
+              date: article.$createdAt || new Date().toISOString(),
+              category: article.category || "Latest",
+              image: getImageUrl(
+                article.featuredimage || article.image || article.thumbnail
+              ),
+            }))
+          )
+        );
+
+        console.log("📁 Latest news stored in localStorage");
       } catch (storageError) {
-        console.error('❌ Error storing latest news:', storageError);
+        console.error("❌ Error storing latest news:", storageError);
       }
     } catch (error) {
-      console.error('❌ Error fetching news:', error);
+      console.error("❌ Error fetching news:", error);
     } finally {
       setLoading(false);
       if (isRefresh) setRefreshing(false);
@@ -118,36 +128,38 @@ const LatestNews = ({ onNavigateToArticle }) => {
   };
 
   const stripHtml = (html) => {
-    if (!html) return '';
-    const tmp = document.createElement('div');
+    if (!html) return "";
+    const tmp = document.createElement("div");
     tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || '';
+    return tmp.textContent || tmp.innerText || "";
   };
 
   const getWordCount = (content) => {
     if (!content) return 0;
-    return stripHtml(content).split(' ').filter(word => word.length > 0).length;
+    return stripHtml(content)
+      .split(" ")
+      .filter((word) => word.length > 0).length;
   };
 
   const truncateContent = (content, limit = 50) => {
-    if (!content) return '';
+    if (!content) return "";
     const plainText = stripHtml(content);
-    const words = plainText.split(' ');
+    const words = plainText.split(" ");
     if (words.length <= limit) return plainText;
-    return words.slice(0, limit).join(' ') + '...';
+    return words.slice(0, limit).join(" ") + "...";
   };
 
   const handleReadMore = (article) => {
     const wordCount = getWordCount(article.content);
-    
+
     // ALWAYS store article data in localStorage, regardless of word count
     try {
       localStorage.setItem(`article_${article.$id}`, JSON.stringify(article));
       console.log(`✅ Article ${article.$id} stored in localStorage`);
     } catch (error) {
-      console.error('❌ Error storing article in localStorage:', error);
+      console.error("❌ Error storing article in localStorage:", error);
     }
-    
+
     if (wordCount > 50) {
       // For longer articles, navigate to detail page
       if (onNavigateToArticle) {
@@ -163,21 +175,21 @@ const LatestNews = ({ onNavigateToArticle }) => {
         onNavigateToArticle(article.$id);
       } else {
         // Alternative: toggle expansion in-place for short articles
-        setExpandedArticles(prev => ({
+        setExpandedArticles((prev) => ({
           ...prev,
-          [article.$id]: !prev[article.$id]
+          [article.$id]: !prev[article.$id],
         }));
       }
     }
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -189,8 +201,9 @@ const LatestNews = ({ onNavigateToArticle }) => {
   // Helper function to get article image (same logic as ArticleDetailPage)
   const getArticleImage = (article) => {
     if (!article) return null;
-    const imageField = article.featuredimage || article.image || article.thumbnail;
-    if (typeof imageField === 'object' && imageField !== null) {
+    const imageField =
+      article.featuredimage || article.image || article.thumbnail;
+    if (typeof imageField === "object" && imageField !== null) {
       return imageField.url || imageField.src || imageField.href || null;
     }
     return imageField;
@@ -202,9 +215,14 @@ const LatestNews = ({ onNavigateToArticle }) => {
         <div className="text-center">
           <div className="relative mb-8">
             <div className="w-20 h-20 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin mx-auto"></div>
-            <Newspaper className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-red-500" size={32} />
+            <Newspaper
+              className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-red-500"
+              size={32}
+            />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Loading Latest News</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">
+            Loading Latest News
+          </h2>
           <p className="text-gray-400">Fetching the most recent updates...</p>
         </div>
       </div>
@@ -219,10 +237,14 @@ const LatestNews = ({ onNavigateToArticle }) => {
         <div className="flex items-center justify-between mb-12">
           <div>
             <h2 className="text-4xl md:text-5xl font-black mb-2">
-              <span className="text-gray-900">Breaking</span>{' '}
-              <span className="bg-gradient-to-r from-red-500 to-red-400 bg-clip-text text-transparent">Stories</span>
+              <span className="text-gray-900">Breaking</span>{" "}
+              <span className="bg-gradient-to-r from-red-500 to-red-400 bg-clip-text text-transparent">
+                Stories
+              </span>
             </h2>
-            <p className="text-gray-400 text-lg">Real-time news updates and comprehensive coverage</p>
+            <p className="text-gray-400 text-lg">
+              Real-time news updates and comprehensive coverage
+            </p>
           </div>
           {/* <div className="text-right">
             <div className="text-2xl font-bold text-red-400">{news.length}</div>
@@ -243,8 +265,12 @@ const LatestNews = ({ onNavigateToArticle }) => {
                 <Eye className="text-white" size={16} />
               </div>
             </div>
-            <h3 className="text-3xl font-bold text-gray-300 mb-4">No News Available</h3>
-            <p className="text-gray-500 text-lg mb-8">We're working to bring you the latest updates</p>
+            <h3 className="text-3xl font-bold text-gray-300 mb-4">
+              No News Available
+            </h3>
+            <p className="text-gray-500 text-lg mb-8">
+              We're working to bring you the latest updates
+            </p>
             <button
               onClick={handleRefresh}
               className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg font-semibold transition-colors"
@@ -261,13 +287,20 @@ const LatestNews = ({ onNavigateToArticle }) => {
               const shouldTruncate = wordCount > 50;
               const isExpanded = expandedArticles[article.$id];
               const readingTime = getReadingTime(article.content);
-              
+
               // Get image URL using the same method as ArticleDetailPage
               const articleImage = getArticleImage(article);
               const imageUrl = getImageUrl(articleImage);
-              
-              console.log('Article:', article.title, 'Image field:', articleImage, 'Final URL:', imageUrl);
-              
+
+              console.log(
+                "Article:",
+                article.title,
+                "Image field:",
+                articleImage,
+                "Final URL:",
+                imageUrl
+              );
+
               return (
                 <article
                   key={article.$id}
@@ -278,36 +311,48 @@ const LatestNews = ({ onNavigateToArticle }) => {
                     {imageUrl ? (
                       <img
                         src={imageUrl}
-                        alt={article.title || 'Article image'}
+                        alt={article.title || "Article image"}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         onLoad={() => {
-                          console.log('✅ Image loaded successfully:', imageUrl);
+                          console.log(
+                            "✅ Image loaded successfully:",
+                            imageUrl
+                          );
                         }}
                         onError={(e) => {
-                          console.error('❌ Image failed to load:', imageUrl);
-                          console.error('Error details:', {
+                          console.error("❌ Image failed to load:", imageUrl);
+                          console.error("Error details:", {
                             articleImage: articleImage,
                             bucketId: conf.appwriteBucketId,
-                            fullUrl: imageUrl
+                            fullUrl: imageUrl,
                           });
-                          e.target.style.display = 'none';
-                          e.target.parentElement.querySelector('.fallback-placeholder').style.display = 'flex';
+                          e.target.style.display = "none";
+                          e.target.parentElement.querySelector(
+                            ".fallback-placeholder"
+                          ).style.display = "flex";
                         }}
                       />
                     ) : null}
-                    
+
                     {/* Fallback placeholder */}
-                    <div 
-                      className={`fallback-placeholder absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center ${imageUrl ? 'hidden' : 'flex'}`}
+                    <div
+                      className={`fallback-placeholder absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center ${
+                        imageUrl ? "hidden" : "flex"
+                      }`}
                     >
                       <div className="text-center">
-                        <ImageIcon className="text-gray-500 mb-2 mx-auto" size={48} />
-                        <p className="text-gray-400 text-sm">No Image Available</p>
+                        <ImageIcon
+                          className="text-gray-500 mb-2 mx-auto"
+                          size={48}
+                        />
+                        <p className="text-gray-400 text-sm">
+                          No Image Available
+                        </p>
                       </div>
                     </div>
-                    
+
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                    
+
                     {/* Category Badge */}
                     {article.category && (
                       <div className="absolute top-4 right-4">
@@ -326,17 +371,17 @@ const LatestNews = ({ onNavigateToArticle }) => {
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Content Section */}
                   <div className="p-6">
                     {/* Title */}
-                    <h3 
+                    <h3
                       className="text-xl font-bold text-white mb-4 line-clamp-2 hover:text-red-400 transition-colors cursor-pointer group-hover:text-red-300"
                       onClick={() => handleReadMore(article)}
                     >
                       {article.title}
                     </h3>
-                    
+
                     {/* Meta Information */}
                     <div className="flex items-center justify-between text-gray-400 text-sm mb-4 pb-4 border-b border-gray-700">
                       <div className="flex items-center gap-4">
@@ -352,26 +397,33 @@ const LatestNews = ({ onNavigateToArticle }) => {
                         </div>
                       )}
                     </div>
-                    
+
                     {/* Content Preview */}
                     <div className="text-gray-300 mb-6 leading-relaxed">
                       {shouldTruncate && !isExpanded && wordCount <= 50 ? (
-                        <p className="text-sm">{truncateContent(article.content)}</p>
+                        <p className="text-sm">
+                          {truncateContent(article.content)}
+                        </p>
                       ) : wordCount <= 50 && isExpanded ? (
-                        <div 
+                        <div
                           className="text-sm prose prose-invert max-w-none"
-                          dangerouslySetInnerHTML={{ __html: article.content }} 
+                          dangerouslySetInnerHTML={{ __html: article.content }}
                         />
                       ) : (
-                        <p className="text-sm">{truncateContent(article.content)}</p>
+                        <p className="text-sm">
+                          {truncateContent(article.content)}
+                        </p>
                       )}
                     </div>
-                    
+
                     {/* Tags */}
                     {article.tags && article.tags.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-6">
                         {article.tags.slice(0, 3).map((tag, tagIndex) => (
-                          <span key={tagIndex} className="flex items-center gap-1 bg-gray-800 text-gray-300 px-2 py-1 rounded-full text-xs hover:bg-gray-700 transition-colors">
+                          <span
+                            key={tagIndex}
+                            className="flex items-center gap-1 bg-gray-800 text-gray-300 px-2 py-1 rounded-full text-xs hover:bg-gray-700 transition-colors"
+                          >
                             <Hash size={10} />
                             {tag}
                           </span>
@@ -383,7 +435,7 @@ const LatestNews = ({ onNavigateToArticle }) => {
                         )}
                       </div>
                     )}
-                    
+
                     {/* Action Bar */}
                     <div className="flex items-center justify-between pt-4 border-t border-gray-700">
                       {/* Read More Button */}
@@ -393,9 +445,9 @@ const LatestNews = ({ onNavigateToArticle }) => {
                       >
                         <BookOpen size={16} />
                         <span>Read Full Article</span>
-                        <ArrowRight 
-                          size={16} 
-                          className="transform group-hover/btn:translate-x-1 transition-transform" 
+                        <ArrowRight
+                          size={16}
+                          className="transform group-hover/btn:translate-x-1 transition-transform"
                         />
                       </button>
                     </div>

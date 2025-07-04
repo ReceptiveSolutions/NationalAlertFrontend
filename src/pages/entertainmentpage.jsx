@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FiSearch,
   FiStar,
   FiTrendingUp,
   FiClock,
@@ -9,8 +8,6 @@ import {
   FiTv,
   FiMusic,
   FiAward,
-  FiChevronDown,
-  FiChevronUp,
   FiArrowRight,
 } from "react-icons/fi";
 import { Newspaper } from "lucide-react";

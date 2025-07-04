@@ -5,8 +5,7 @@ import {
   FiPieChart,
   FiShield,
   FiDroplet,
-  FiChevronDown,
-  FiChevronUp,
+ 
   FiArrowRight,
   FiActivity,
   FiDollarSign,
