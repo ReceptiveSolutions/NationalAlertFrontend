@@ -29,6 +29,7 @@ const Entertainment = () => {
   const [displayCount, setDisplayCount] = useState(6);
   const [showRssData, setShowRssData] = useState(false);
   const [rssDataLoaded, setRssDataLoaded] = useState(false);
+  const [rssDisplayCount, setRssDisplayCount] = useState(4); // Add RSS display count
 
   // In-memory storage for articles (fallback when localStorage isn't available)
   const [articleStorage, setArticleStorage] = useState({});
@@ -135,7 +136,7 @@ const Entertainment = () => {
     }));
   };
 
-  // Modified loadMoreContent function to handle RSS data
+  // Fixed loadMoreContent function
   const loadMoreContent = () => {
     if (!rssDataLoaded) {
       // First time clicking - load RSS data
@@ -143,8 +144,9 @@ const Entertainment = () => {
       setShowRssData(true);
       // The RSS component will be rendered and will call handleRssDataLoaded
     } else {
-      // RSS data already loaded, just show more
+      // RSS data already loaded, increment both counters
       setDisplayCount((prevCount) => prevCount + 4);
+      setRssDisplayCount((prevCount) => prevCount + 4);
     }
   };
 
@@ -238,60 +240,6 @@ const Entertainment = () => {
         storeArticle(article);
       });
 
-      // Create completely different trending content for sidebar
-      // setTrendingContent([
-      //   {
-      //     id: "trending-1",
-      //     title: "Hollywood Stars Rally for Climate Change Awareness",
-      //     summary:
-      //       "A-list celebrities join forces in a groundbreaking campaign to raise awareness about climate change and sustainable living practices in the entertainment industry.",
-      //     subcategory: "Movies",
-      //     date: "2025-05-12",
-      //     rating: 5,
-      //     trendIcon: "🔥",
-      //   },
-      //   {
-      //     id: "trending-2",
-      //     title: "New Streaming Platform Challenges Industry Giants",
-      //     summary:
-      //       "An emerging streaming service is making waves with exclusive content deals and innovative viewer experience features that could reshape how we consume entertainment.",
-      //     subcategory: "TV Shows",
-      //     date: "2025-05-14",
-      //     rating: 4,
-      //     trendIcon: "🌟",
-      //   },
-      //   {
-      //     id: "trending-3",
-      //     title: "Virtual Reality Concert Sets Attendance Record",
-      //     summary:
-      //       "A groundbreaking virtual reality concert experience attracted over 15 million simultaneous viewers, setting a new standard for digital live performances.",
-      //     subcategory: "Music",
-      //     date: "2025-05-13",
-      //     rating: 5,
-      //     trendIcon: "🎬",
-      //   },
-      //   {
-      //     id: "trending-4",
-      //     title: "Surprise Album Release Breaks Streaming Records",
-      //     summary:
-      //       "An unexpected midnight album drop from a beloved artist has shattered first-day streaming records across all major platforms.",
-      //     subcategory: "Music",
-      //     date: "2025-05-15",
-      //     rating: 4,
-      //     trendIcon: "👑",
-      //   },
-      //   {
-      //     id: "trending-5",
-      //     title: "Indie Film Festival Announces Hybrid Format",
-      //     summary:
-      //       "One of the world's most prestigious independent film festivals announces a permanent hybrid format, combining in-person and virtual screenings to increase global accessibility.",
-      //     subcategory: "Movies",
-      //     date: "2025-05-11",
-      //     rating: 4,
-      //     trendIcon: "💃",
-      //   },
-      // ]);
-
       // Store trending content as well
       setTrendingContent((prev) => {
         prev.forEach((article) => storeArticle(article));
@@ -318,6 +266,7 @@ const Entertainment = () => {
     setRssDataLoaded(false);
     setShowRssData(false);
     setDisplayCount(6);
+    setRssDisplayCount(4); // Reset RSS display count
 
     // Clear localStorage entertainment data if needed
     try {
@@ -392,7 +341,7 @@ const Entertainment = () => {
     General: <FiStar className="mr-2" />,
   };
 
-  // Function to get content to display (API + RSS)
+  // Fixed function to get content to display (API + RSS)
   const getContentToDisplay = () => {
     let contentToShow = latestContent
       .filter(
@@ -402,7 +351,7 @@ const Entertainment = () => {
       )
       .slice(0, displayCount);
 
-    // Add RSS content if it should be shown
+    // Add RSS content if it should be shown, but respect rssDisplayCount
     if (showRssData && rssContent.length > 0) {
       const rssToShow = rssContent
         .filter(
@@ -410,12 +359,34 @@ const Entertainment = () => {
             activeCategory === "all" ||
             content.subcategory.toLowerCase().includes(activeCategory)
         )
-        .slice(0, rssDataLoaded ? rssContent.length : 4);
+        .slice(0, rssDisplayCount); // Use rssDisplayCount instead of showing all
       contentToShow = [...contentToShow, ...rssToShow];
     }
 
     return contentToShow;
   };
+
+  // Check if there's more content to load
+  const hasMoreContent = () => {
+    const filteredLatest = latestContent.filter(
+      (content) =>
+        activeCategory === "all" ||
+        content.subcategory.toLowerCase().includes(activeCategory)
+    );
+    
+    const filteredRss = rssContent.filter(
+      (content) =>
+        activeCategory === "all" ||
+        content.subcategory.toLowerCase().includes(activeCategory)
+    );
+
+    return (
+      filteredLatest.length > displayCount ||
+      (!rssDataLoaded && filteredLatest.length > 0) ||
+      (rssDataLoaded && filteredRss.length > rssDisplayCount)
+    );
+  };
+
   return (
     <div className="bg-gradient-to-b from-purple-900 to-black min-h-screen text-white">
       <EntertainmentApi onDataLoaded={handleDataLoaded} />
@@ -496,7 +467,7 @@ const Entertainment = () => {
       ))}
 
       {/* Load More Button */}
-      {(latestContent.length > displayCount || !rssDataLoaded) && (
+      {hasMoreContent() && (
         <div className="flex justify-center mt-8">
           <button
             onClick={loadMoreContent}
