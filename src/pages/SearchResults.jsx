@@ -5,6 +5,7 @@ function SearchResults() {
   const [searchParams] = useSearchParams();
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   // Function to strip HTML tags
   const stripHtml = (html) => {
@@ -23,116 +24,167 @@ function SearchResults() {
 
   // Get article image URL
   const getArticleImage = (article) => {
-    return article.image || 
+    return article.image_url || 
+           article.image || 
            article.urlToImage || 
            article.imgUrl || 
            article.thumbnail || 
            '/placeholder-news.jpg';
   };
 
+  // Format date
+  const formatDate = (dateString) => {
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Unknown date';
+    }
+  };
+
+  // Format category array or string
+  const formatCategory = (category) => {
+    if (!category) return 'General News';
+    if (Array.isArray(category)) {
+      return category.join(', ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+    return category.charAt(0).toUpperCase() + category.slice(1);
+  };
+
+  // Search in localStorage
+  const searchLocalStorage = (query) => {
+    try {
+      const savedArticles = JSON.parse(localStorage.getItem('savedArticles') || '[]');
+      if (!Array.isArray(savedArticles)) return [];
+      
+      const lowerQuery = query.toLowerCase();
+      return savedArticles.filter(article => {
+        const title = article.title?.toLowerCase() || '';
+        const description = article.description?.toLowerCase() || '';
+        const content = article.content?.toLowerCase() || '';
+        
+        return title.includes(lowerQuery) || 
+               description.includes(lowerQuery) || 
+               content.includes(lowerQuery);
+      });
+    } catch (err) {
+      console.error('Error searching localStorage:', err);
+      return [];
+    }
+  };
+
   useEffect(() => {
-    const query = searchParams.get('q')?.toLowerCase().trim();
+    const query = searchParams.get('q')?.trim();
     console.log('🔍 Search query:', query);
 
     if (!query) {
       setResults([]);
+      setError(null);
       return;
     }
 
-    setIsLoading(true);
+    const fetchSearchResults = async () => {
+      setIsLoading(true);
+      setError(null);
 
-    // Get all possible storage locations
-    const storageKeys = [
-      // Homepage categories
-      'newsData',
-      'politicsData',
-      'businessData',
-      'technologyData',
-      'healthData',
-      'sportsData',
-      'entertainmentData',
-      
-      // Business page categories
-      'shareMarketData',
-      'marketData',
-      'latestData',
-      
-      // Individual articles
-      ...getIndividualArticleKeys()
-    ];
-
-    let allArticles = [];
-
-    // Load data from all sources
-    storageKeys.forEach(key => {
-      const data = localStorage.getItem(key);
-      if (data) {
-        try {
-          const items = JSON.parse(data);
-          // Normalize data to array format
-          const articles = Array.isArray(items) ? items : [items];
-          allArticles = [...allArticles, ...articles];
-        } catch (error) {
-          console.error(`❌ Error parsing ${key}:`, error);
+      try {
+        // Search from API
+        const apiResponse = await fetch(`${BASE_URL}/api/news/search?q=${encodeURIComponent(query)}`);
+        
+        if (!apiResponse.ok) {
+          throw new Error(`HTTP error! status: ${apiResponse.status}`);
         }
+
+        const apiData = await apiResponse.json();
+        
+        // Search from localStorage
+        const localResults = searchLocalStorage(query);
+        
+        // Combine results, removing duplicates by article URL or ID
+        const combinedResults = [...apiData, ...localResults];
+        const uniqueResults = combinedResults.reduce((acc, current) => {
+          const x = acc.find(item => 
+            (item.url && item.url === current.url) || 
+            (item.id && item.id === current.id)
+          );
+          if (!x) {
+            return acc.concat([current]);
+          } else {
+            return acc;
+          }
+        }, []);
+        
+        console.log('📊 Combined search results:', uniqueResults);
+        setResults(uniqueResults || []);
+        
+      } catch (err) {
+        console.error('❌ Search error:', err);
+        
+        // Fallback to localStorage if API fails
+        const localResults = searchLocalStorage(query);
+        if (localResults.length > 0) {
+          setResults(localResults);
+          setError('Could not connect to server. Showing locally saved results only.');
+        } else {
+          setError('Failed to search articles. Please try again.');
+          setResults([]);
+        }
+      } finally {
+        setIsLoading(false);
       }
-    });
+    };
 
-    // Filter and deduplicate results
-    const filtered = allArticles
-      .filter(article => article && matchesSearch(article, query))
-      .filter((article, index, self) => 
-        index === self.findIndex(a => a.id === article.id)
-      );
-
-    setResults(filtered);
-    setIsLoading(false);
+    fetchSearchResults();
   }, [searchParams]);
 
-  // Helper to get all individual article keys
-  const getIndividualArticleKeys = () => {
-    return Object.keys(localStorage)
-      .filter(key => key.startsWith('article_'));
-  };
-
-  // Improved search matching function
-  const matchesSearch = (article, query) => {
-    if (!article) return false;
-    
-    const searchText = [
-      article.title,
-      article.headline,
-      article.description,
-      article.summary,
-      // Handle HTML content by stripping tags before searching
-      stripHtml(article.content || ''),
-      // Handle both object and array content formats
-      ...(typeof article.content === 'string' ? [] : []),
-      ...(Array.isArray(article.content) ? 
-        article.content.map(c => stripHtml(c.text || '')) : []),
-      ...(typeof article.content?.text === 'string' ? 
-        [stripHtml(article.content.text)] : [])
-    ]
-      .filter(Boolean) // Remove empty fields
-      .join(' ')       // Combine into one string
-      .toLowerCase();  // Case-insensitive search
-    
-    return searchText.includes(query);
-  };
+  const query = searchParams.get('q') || '';
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6 text-gray-800">Search Results</h1>
+        {/* Search Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Search Results</h1>
+          {query && (
+            <p className="text-gray-600">
+              Showing results for: <span className="font-semibold">"{query}"</span>
+              {!isLoading && results.length > 0 && (
+                <span className="ml-2 text-sm">({results.length} articles found)</span>
+              )}
+            </p>
+          )}
+        </div>
         
-        {isLoading ? (
+        {/* Loading State */}
+        {isLoading && (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-600"></div>
+              <span className="text-gray-600">Searching articles...</span>
+            </div>
           </div>
-        ) : results.length === 0 ? (
-          <div className="bg-gray-50 rounded-lg p-8 text-center">
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+            <div className="flex items-center">
+              <svg className="h-5 w-5 text-red-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-red-800">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* No Results State */}
+        {!isLoading && !error && results.length === 0 && query && (
+          <div className="bg-gray-50 rounded-lg p-12 text-center">
             <svg
-              className="mx-auto h-12 w-12 text-gray-400"
+              className="mx-auto h-16 w-16 text-gray-400 mb-4"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -141,22 +193,37 @@ function SearchResults() {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                strokeWidth={1.5}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-            <h3 className="mt-2 text-lg font-medium text-gray-900">No results found</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Try searching for something else or check your spelling.
+            <h3 className="text-xl font-medium text-gray-900 mb-2">No articles found</h3>
+            <p className="text-gray-600 mb-4">
+              We couldn't find any articles matching "{query}".
             </p>
+            <div className="text-sm text-gray-500">
+              <p>Try:</p>
+              <ul className="mt-2 space-y-1">
+                <li>• Using different keywords</li>
+                <li>• Checking your spelling</li>
+                <li>• Using more general terms</li>
+              </ul>
+            </div>
           </div>
-        ) : (
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {results.map((article, idx) => (
-              <article key={idx} className="flex flex-col overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
-                <div className="flex-shrink-0 h-48 overflow-hidden">
+        )}
+
+        {/* Results Grid */}
+        {!isLoading && !error && results.length > 0 && (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {results.map((article) => (
+              <article 
+                key={article.id || article.url} 
+                className="flex flex-col overflow-hidden rounded-xl shadow-md hover:shadow-xl transition-all duration-300 bg-white border border-gray-100 hover:border-gray-200"
+              >
+                {/* Article Image */}
+                <div className="flex-shrink-0 h-48 overflow-hidden bg-gray-100">
                   <img
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
                     src={getArticleImage(article)}
                     alt={article.title || 'News article'}
                     onError={(e) => {
@@ -165,52 +232,71 @@ function SearchResults() {
                     }}
                   />
                 </div>
-                <div className="flex flex-1 flex-col justify-between bg-white p-6">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-blue-600">
-                      {article.category || 'General News'}
-                    </p>
-                    <a href={`/article/${article.id}`} className="mt-2 block">
-                      <h3 className="text-xl font-semibold text-gray-900 line-clamp-2">
-                        {article.title || 'Untitled Article'}
-                      </h3>
-                      <p className="mt-3 text-base text-gray-500 line-clamp-3">
-                        {truncateText(
-                          article.description || 
-                          article.summary || 
-                          article.content || 
-                          'No description available'
-                        )}
-                      </p>
-                    </a>
+
+                {/* Article Content */}
+                <div className="flex flex-1 flex-col p-6">
+                  {/* Category */}
+                  <div className="mb-3">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      {formatCategory(article.category)}
+                    </span>
                   </div>
-                  <div className="mt-6 flex items-center">
-                    <div className="flex-shrink-0">
-                      <span className="sr-only">{article.source?.name || 'Unknown source'}</span>
-                      {article.source?.logo && (
-                        <img
-                          className="h-10 w-10 rounded-full"
-                          src={article.source.logo}
-                          alt={article.source.name}
-                        />
-                      )}
-                    </div>
-                    {/* <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-900">
-                        {article.source?.name || 'Unknown source'}
-                      </p>
-                      <div className="flex space-x-1 text-sm text-gray-500">
-                        <time dateTime={article.publishedAt || article.date}>
-                          {new Date(article.publishedAt || article.date).toLocaleDateString()}
-                        </time>
-                        <span aria-hidden="true">&middot;</span>
-                        <span>{article.author || 'Unknown author'}</span>
-                      </div>
-                    </div> */}
+
+                  {/* Title */}
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-2 hover:text-red-700 transition-colors">
+                    <a 
+                      href={article.link || article.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                    >
+                      {article.title || 'Untitled Article'}
+                    </a>
+                  </h3>
+
+                  {/* Description */}
+                  <p className="text-gray-600 text-sm flex-grow line-clamp-3 mb-4">
+                    {truncateText(
+                      article.description || 
+                      article.summary || 
+                      article.content ||
+                      'No description available'
+                    )}
+                  </p>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <time 
+                      className="text-xs text-gray-500"
+                      dateTime={article.created_at || article.publishedAt}
+                    >
+                      {formatDate(article.created_at || article.publishedAt)}
+                    </time>
+                    
+                    <a 
+                      href={article.link || article.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-red-600 hover:text-red-800 text-sm font-medium hover:underline transition-colors"
+                    >
+                      Read More →
+                    </a>
                   </div>
                 </div>
               </article>
             ))}
+          </div>
+        )}
+
+        {/* Back to Home Link */}
+        {!isLoading && (
+          <div className="mt-12 text-center">
+            <a 
+              href="/" 
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-red-600 hover:bg-red-700 transition-colors duration-200"
+            >
+              ← Back to Home
+            </a>
           </div>
         )}
       </div>

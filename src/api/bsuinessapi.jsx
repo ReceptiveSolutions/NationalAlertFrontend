@@ -73,12 +73,7 @@ const ShareMarketApi = ({ onDataLoaded }) => {
       setIsRetrying(retryCount > 0);
       
       // Call YOUR backend endpoint instead of the News API directly
-//      const response = await fetch(
-//   `${import.meta.env.VITE_API_BASE_URL}/api/news`
-// );
-
-      const response = await fetch('https://nationalalertbackend.onrender.com/api/news');
-
+      const response = await  fetch(`${BASE_URL}/api/news?category=business&limit=50`)
 
 
       if (!response.ok) {
@@ -88,17 +83,36 @@ const ShareMarketApi = ({ onDataLoaded }) => {
       const data = await response.json();
       console.log('✅ Backend API Response:', data);
 
-      // Check if we got data from cache or fresh
-      const articles = data.fromCache ? data.data : data.data;
+      // FIXED: Check if data is directly an array or wrapped in an object
+      let articles;
+      if (Array.isArray(data)) {
+        // Data is directly an array
+        articles = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        // Data is wrapped in an object with 'data' property
+        articles = data.data;
+      } else if (data.articles && Array.isArray(data.articles)) {
+        // Data is wrapped in an object with 'articles' property
+        articles = data.articles;
+      } else {
+        // Try to extract articles from any property that contains an array
+        const keys = Object.keys(data);
+        const arrayKey = keys.find(key => Array.isArray(data[key]));
+        if (arrayKey) {
+          articles = data[arrayKey];
+        } else {
+          throw new Error('No articles found in API response');
+        }
+      }
 
       if (Array.isArray(articles) && articles.length > 0) {
         const marketCategories = ['Stocks', 'Cryptocurrency', 'Commodities', 'Forex', 'IPO', 'Mutual Funds'];
         
-        // Process the articles similar to before
+        // Process the articles
         const filteredArticles = articles.map((item, index) => {
           // Determine the most appropriate subcategory based on content
           let subcategory = 'Stocks';
-          const content = (item.title + ' ' + (item.description || '')).toLowerCase();
+          const content = (item.title + ' ' + (item.description || item.summary || '')).toLowerCase();
           
           if (content.includes('crypto') || content.includes('bitcoin') || content.includes('ethereum')) {
             subcategory = 'Cryptocurrency';
@@ -118,11 +132,11 @@ const ShareMarketApi = ({ onDataLoaded }) => {
           const stockChange = isPositive ? `+${changePercent}%` : `-${changePercent}%`;
           
           return {
-            id: item.article_id || index,
+            id: item.article_id || item.id || index,
             title: item.title || 'No title available',
-            summary: item.description || 'No description available',
-            image: item.image_url || `https://source.unsplash.com/random/800x500/?finance,${subcategory.toLowerCase()}`,
-            date: item.pubDate ? new Date(item.pubDate).toLocaleDateString() : new Date().toLocaleDateString(),
+            summary: item.description || item.summary || item.content || 'No description available',
+            image: item.image_url || item.image || item.urlToImage || `https://source.unsplash.com/random/800x500/?finance,${subcategory.toLowerCase()}`,
+            date: item.pubDate || item.publishedAt || item.date ? new Date(item.pubDate || item.publishedAt || item.date).toLocaleDateString() : new Date().toLocaleDateString(),
             category: item.category || 'Business',
             subcategory: subcategory,
             stockPrice: `$${Math.floor(Math.random() * 1000) + 10}.${Math.floor(Math.random() * 99)}`,
@@ -131,12 +145,14 @@ const ShareMarketApi = ({ onDataLoaded }) => {
           };
         });
         
+        console.log('✅ Processed articles:', filteredArticles.length);
+        
         // Cache the successful response
         cacheData(filteredArticles);
         onDataLoaded(filteredArticles);
         setIsRetrying(false);
       } else {
-        throw new Error('No share market results found in the API response');
+        throw new Error('No articles found in the processed data');
       }
     } catch (error) {
       console.error(`❌ Failed to fetch share market news (attempt ${retryCount + 1}):`, error);

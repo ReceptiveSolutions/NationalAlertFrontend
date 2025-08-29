@@ -16,6 +16,7 @@ const Newsapi = ({ onDataLoaded, category = 'general' }) => {
         summary: `This is placeholder content for a news article that couldn't be loaded from the API. This would normally contain a summary of the latest ${categoryName.toLowerCase()} news.`,
         image: `https://source.unsplash.com/random/800x500/?${categoryName.toLowerCase()}`,
         date: new Date().toLocaleDateString(),
+        category: categoryName
       });
     }
     
@@ -63,10 +64,9 @@ const Newsapi = ({ onDataLoaded, category = 'general' }) => {
       
       setIsRetrying(retryCount > 0);
       
-      // Fetch from your backend API - using the category prop directly
-      // Remove the line: const category = 'general'; 
-      const response = await fetch(`https://nationalalertbackend.onrender.com/api/news/${category}`);
-      
+      const response = await fetch(`${BASE_URL}/api/news?limit=15`);
+
+
       if (!response.ok) {
         throw new Error(`Backend returned status ${response.status}`);
       }
@@ -74,18 +74,49 @@ const Newsapi = ({ onDataLoaded, category = 'general' }) => {
       const data = await response.json();
       console.log('✅ Backend Response:', data);
 
-      // Handle both cached and fresh responses from backend
-      const articles = data.data || [];
+      // Handle different response structures more robustly
+      let articles;
+      if (Array.isArray(data)) {
+        articles = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        articles = data.data;
+      } else if (data.articles && Array.isArray(data.articles)) {
+        articles = data.articles;
+      } else {
+        // Try to extract articles from any array property
+        const keys = Object.keys(data);
+        const arrayKey = keys.find(key => Array.isArray(data[key]));
+        articles = arrayKey ? data[arrayKey] : [];
+      }
       
       if (Array.isArray(articles) && articles.length > 0) {
-        const filteredArticles = articles.map((item, index) => ({
-          id: item.article_id || index,
-          title: item.title || 'No title available',
-          summary: item.description || 'No description available',
-          image: item.image_url || `https://source.unsplash.com/random/800x500/?${category}`,
-          date: item.pubDate ? new Date(item.pubDate).toLocaleDateString() : new Date().toLocaleDateString(),
-          category: item.category || category
-        }));
+        console.log('🔍 Raw backend articles received:', articles.slice(0, 2)); // Debug log
+        
+        const filteredArticles = articles.map((item, index) => {
+          // ✅ FIXED: Use the correct ID property and don't fallback to index
+          const articleId = item.id || item.article_id || item._id; // Try common ID field names
+          
+          if (!articleId) {
+            console.error('❌ Article missing ID:', item);
+            return null; // Skip articles without valid IDs
+          }
+          
+          console.log(`🔍 Processing article ${index}:`, { 
+            originalId: articleId, 
+            title: item.title?.substring(0, 50) 
+          });
+          
+          return {
+            id: articleId, // ✅ Use the real UUID from backend
+            title: item.title || 'No title available',
+            summary: item.description || item.summary || item.content || 'No description available',
+            image: item.image_url || item.urlToImage || `https://source.unsplash.com/random/800x500/?${category}`,
+            date: item.pubDate || item.publishedAt ? new Date(item.pubDate || item.publishedAt).toLocaleDateString() : new Date().toLocaleDateString(),
+            category: item.category || category
+          };
+        }).filter(Boolean); // Remove null entries (articles without IDs)
+        
+        console.log('✅ Processed articles with real IDs:', filteredArticles.map(a => ({ id: a.id, title: a.title?.substring(0, 30) })));
         
         // Cache the successful response
         cacheData(filteredArticles);

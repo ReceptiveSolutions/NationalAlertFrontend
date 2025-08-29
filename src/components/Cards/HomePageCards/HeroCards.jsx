@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ExternalLink, ChevronUp, ChevronDown } from 'lucide-react';
 
 function HeroCards({ article, index, onStoreArticle }) {
+  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
+
+  // ✅ FIXED: Don't render if no article is provided
+  // Note: Use !== undefined to allow ID of 0, which is falsy but valid
+  if (!article || article.id === undefined || article.id === null) {
+    console.error('HeroCards: No article or article.id provided:', article);
+    return null;
+  }
 
   const hasMoreThan50Words = (text) => {
     const wordCount = text ? text.split(/\s+/).length : 0;
@@ -12,34 +21,44 @@ function HeroCards({ article, index, onStoreArticle }) {
   const toggleExpand = () => {
     const wordCount = article.summary ? article.summary.split(/\s+/).length : 0;
     
+    console.log('HeroCards: Navigating with article ID:', article.id); // Debug log
+    
     if (wordCount > 50) {
       if (onStoreArticle) {
         onStoreArticle(article);
       }
-      // Navigate to the detail page - you can implement this based on your routing solution
-      console.log(`Navigate to /article/${article.id}`);
+      navigate(`/article/${article.id}`);
     } else {
       setExpanded(prev => !prev);
     }
   };
 
-  // Sample article data for demo
-  const sampleArticle = article || {
-    id: 1,
-    title: "Sample News Article Title That Shows How Headlines Are Displayed",
-    summary: "This is a sample summary for demonstration purposes. It contains enough text to show how the component handles longer content and how the read more functionality works with different text lengths.",
-    image: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&h=400&fit=crop",
-    date: "Dec 15, 2024",
-    isBreaking: false
+  // ✅ FIXED: Use the article directly, with safe fallbacks for individual properties
+  const displayArticle = {
+    id: article.id, // ✅ Always use the real ID
+    title: article.title || "No title available",
+    summary: article.summary || "No description available", 
+    image: article.image || `https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&h=400&fit=crop&sig=${index}`,
+    date: article.date || "No date",
+    isBreaking: article.isBreaking || false
   };
-
-  const displayArticle = sampleArticle;
 
   return (
     <div
       className={`bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200 ${
         index < 2 ? "sm:col-span-2 lg:col-span-2" : ""
       }`}
+      onClick={(e) => {
+        // Allow navigation when clicking anywhere on the card for articles >50 words
+        if (hasMoreThan50Words(displayArticle.summary)) {
+          if (onStoreArticle) {
+            onStoreArticle(displayArticle);
+          }
+          console.log('HeroCards: Card clicked, navigating with ID:', displayArticle.id); // Debug log
+          navigate(`/article/${displayArticle.id}`);
+        }
+      }}
+      style={{ cursor: hasMoreThan50Words(displayArticle.summary) ? 'pointer' : 'default' }}
     >
       {/* Image Section */}
       <div className="relative">
@@ -84,7 +103,10 @@ function HeroCards({ article, index, onStoreArticle }) {
         {/* Action Button */}
         <div className="flex justify-end">
           <button
-            onClick={toggleExpand}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent triggering the card's onClick
+              toggleExpand();
+            }}
             className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center gap-1 transition-colors"
           >
             {hasMoreThan50Words(displayArticle.summary) ? (

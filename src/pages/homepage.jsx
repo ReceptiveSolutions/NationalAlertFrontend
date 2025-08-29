@@ -3,7 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { FiTrendingUp } from "react-icons/fi";
 import Newsapi from "../api/newsapi";
 import BBCNewsFetcher from "../Rss/BBCNews"; // Your RSS component
-import { CardSM, SidebarCard, HeroCards } from "../components/index";
+import {
+  CardSM,
+  SidebarCard,
+  HeroCards,
+  Hslider,
+  Headlines,
+} from "../components/index";
 
 const NewsHomepage = () => {
   const [featuredNews, setFeaturedNews] = useState([]);
@@ -19,10 +25,9 @@ const NewsHomepage = () => {
   const [rssDataFetched, setRssDataFetched] = useState(false);
   const [rssCurrentIndex, setRssCurrentIndex] = useState(0);
 
-  // In-memory storage for articles (fallback when localStorage isn't available)
+  // In-memory storage for articles
   const [articleStorage, setArticleStorage] = useState({});
 
-  
   const [displayCount, setDisplayCount] = useState(6);
   const [additionalRssArticles, setAdditionalRssArticles] = useState([]);
 
@@ -33,7 +38,7 @@ const NewsHomepage = () => {
     return text ? text.split(/\s+/).length : 0;
   };
 
-  // Store article function
+  // Store article function - memory only
   const storeArticle = (article) => {
     const articleData = {
       ...article,
@@ -55,73 +60,14 @@ const NewsHomepage = () => {
       subcategory: article.subcategory || "General News",
     };
 
-    // Store in component state
+    // Store in component state only
     setArticleStorage((prev) => ({
       ...prev,
       [article.id]: articleData,
     }));
 
-    try {
-      if (typeof Storage !== "undefined") {
-        // Store individual article
-        localStorage.setItem(
-          `article_${article.id}`,
-          JSON.stringify(articleData)
-        );
-
-        // Store in newsData array
-        const existingNewsData = JSON.parse(
-          localStorage.getItem("newsData") || "[]"
-        );
-        const updatedNewsData = existingNewsData.some(
-          (item) => item.id === article.id
-        )
-          ? existingNewsData
-          : [...existingNewsData, articleData];
-        localStorage.setItem("newsData", JSON.stringify(updatedNewsData));
-
-        // Store API news separately
-        if (article.source === "api") {
-          const existingApiData = JSON.parse(
-            localStorage.getItem("apiNewsData") || "[]"
-          );
-          const updatedApiData = existingApiData.some(
-            (item) => item.id === article.id
-          )
-            ? existingApiData
-            : [...existingApiData, articleData];
-          localStorage.setItem("apiNewsData", JSON.stringify(updatedApiData));
-        }
-
-        // Store RSS news separately
-        if (article.source === "rss") {
-          const existingRssData = JSON.parse(
-            localStorage.getItem("rssNewsData") || "[]"
-          );
-          const updatedRssData = existingRssData.some(
-            (item) => item.id === article.id
-          )
-            ? existingRssData
-            : [...existingRssData, articleData];
-          localStorage.setItem("rssNewsData", JSON.stringify(updatedRssData));
-        }
-
-        console.log("Article stored in:", {
-          individual: `article_${article.id}`,
-          newsData: updatedNewsData.length,
-          source: article.source,
-        });
-      }
-    } catch (error) {
-      console.error("Storage error:", error);
-    }
-
+    console.log(`🧠 Article "${article.title}" stored in memory only`);
     return articleData;
-  };
-
-  // Helper function to generate unique IDs to avoid conflicts
-  const generateUniqueId = (title, source, index) => {
-    return `${source}_${title.slice(0, 20).replace(/\s+/g, "_")}_${index}`;
   };
 
   // Helper function to check for duplicate articles
@@ -169,14 +115,17 @@ const NewsHomepage = () => {
     return costs[s1.length];
   };
 
- 
   // Process API data only
   const processApiData = (apiData) => {
     if (!apiData || apiData.length === 0) return [];
 
     return apiData.map((item, index) => {
+      console.log(`🔍 Processing item ${index}:`, {
+        originalId: item.id,
+        title: item.title,
+      });
       const article = {
-        id: generateUniqueId(item.title || "API Article", "api", index),
+        id: item.id,
         title: item.title || "No title available",
         summary: item.summary || item.description || "No description available",
         image:
@@ -196,8 +145,13 @@ const NewsHomepage = () => {
         content: index % 3 === 0 ? generateAdditionalContent() : [],
       };
 
-      // Store each article
+      // Store each article in memory
       storeArticle(article);
+
+      console.log(`✅ Processed article ${index}:`, {
+        processedId: article.id,
+        title: article.title,
+      });
       return article;
     });
   };
@@ -208,7 +162,7 @@ const NewsHomepage = () => {
 
     return rssData.map((item, index) => {
       const article = {
-        id: generateUniqueId(item.title || "RSS Article", "rss", index),
+        id: item.id,
         title: item.title || "No title available",
         summary: item.summary || item.description || "No description available",
         image:
@@ -229,7 +183,7 @@ const NewsHomepage = () => {
         content: generateAdditionalContent(),
       };
 
-      // Store each article
+      // Store each article in memory
       storeArticle(article);
       return article;
     });
@@ -428,10 +382,13 @@ const NewsHomepage = () => {
         <ErrorDisplay />
       ) : (
         <section>
+
+         
           <section className="relative">
-            <div className="bg-gray-100 text-gray-900 py-10 px-6 lg:px-10">
+            <div className="bg-white text-gray-900 py-10 px-6 lg:px-10">
               <div className="max-w-7xl mx-auto">
                 <div className="mb-6">
+                  
                   <div className="flex items-center mb-2">
                     <FiTrendingUp className="mr-2" />
                     <span className="text-sm font-medium">TRENDING NOW</span>
@@ -444,6 +401,9 @@ const NewsHomepage = () => {
                   </p>
                 </div>
 
+
+                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
                   {featuredNews.map((article, index) => (
                     <HeroCards
@@ -454,6 +414,10 @@ const NewsHomepage = () => {
                     />
                   ))}
                 </div>
+
+                 <Headlines></Headlines>
+
+                <Hslider></Hslider>
               </div>
             </div>
           </section>
@@ -542,4 +506,5 @@ const NewsHomepage = () => {
     </div>
   );
 };
+
 export default NewsHomepage;

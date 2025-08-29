@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   FiTrendingUp,
   FiBarChart2,
   FiPieChart,
   FiShield,
   FiDroplet,
- 
   FiArrowRight,
   FiActivity,
   FiDollarSign,
@@ -14,7 +13,7 @@ import { Newspaper } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import ShareMarketApi from "../api/bsuinessapi";
 import TimesOfIndiaBusinessFetcher from "../Rss/BsuinessNews";
-import { BheroCards, BotherCards } from "../components/index";
+import { BheroCards, BotherCards, Bslider } from "../components/index";
 
 const ShareMarket = () => {
   const navigate = useNavigate();
@@ -30,103 +29,45 @@ const ShareMarket = () => {
   const [displayCount, setDisplayCount] = useState(6);
   const [rssLoadCount, setRssLoadCount] = useState(0);
   const [hasLoadedRss, setHasLoadedRss] = useState(false);
-
-  // In-memory storage for articles (fallback when localStorage isn't available)
   const [articleStorage, setArticleStorage] = useState({});
-
-  // Debug log to check if loadMoreContent is called and the current display count
-  useEffect(() => {
-    console.log(`Current display count: ${displayCount}`);
-    console.log(`Total latest market news items: ${latestMarketNews.length}`);
-    console.log(`RSS news loaded: ${displayedRssNews.length}`);
-    console.log(
-      `Number of items being displayed: ${Math.min(
-        displayCount,
-        latestMarketNews.length
-      )}`
-    );
-  }, [displayCount, latestMarketNews.length, displayedRssNews.length]);
 
   // Function to count words in a string
   const countWords = (text) => {
     return text.split(/\s+/).filter((word) => word.length > 0).length;
   };
 
-  const storeArticle = (article) => {
+  // Simplified storeArticle function - all data in memory only
+  const storeArticle = (article, isRssData = false) => {
     const articleData = {
       ...article,
       date: article.date || new Date().toLocaleDateString(),
       isBreaking: article.isHot || false,
-      author: article.author || "Market Analyst",
+      author:
+        article.author || (isRssData ? "Times of India" : "Market Analyst"),
       readTime:
         article.readTime ||
         `${Math.ceil(countWords(article.summary || "") / 200)} min read`,
       image: article.image,
       content: [
         {
-          subheading: "Market Analysis",
+          subheading: isRssData ? "Business News" : "Market Analysis",
           text: article.summary || "No content available",
         },
       ],
-      // Standardize category naming
-      category: "business", // Changed from 'ShareMarket' to match search expectations
-      subcategory: article.subcategory || "Market News",
+      category: "business",
+      subcategory: article.subcategory || (isRssData ? "News" : "Market News"),
+      isRssData: isRssData,
     };
 
-    // Store in component state
     setArticleStorage((prev) => ({
       ...prev,
       [article.id]: articleData,
     }));
 
-    try {
-      if (typeof Storage !== "undefined") {
-        // Store individual article
-        localStorage.setItem(
-          `article_${article.id}`,
-          JSON.stringify(articleData)
-        );
-
-        // Store in both businessData and shareMarketData for compatibility
-        const existingBusinessData = JSON.parse(
-          localStorage.getItem("businessData") || "[]"
-        );
-        const updatedBusinessData = existingBusinessData.some(
-          (item) => item.id === article.id
-        )
-          ? existingBusinessData
-          : [...existingBusinessData, articleData];
-        localStorage.setItem(
-          "businessData",
-          JSON.stringify(updatedBusinessData)
-        );
-
-        // Maintain shareMarketData for backward compatibility
-        const existingShareMarketData = JSON.parse(
-          localStorage.getItem("shareMarketData") || "[]"
-        );
-        const updatedShareMarketData = existingShareMarketData.some(
-          (item) => item.id === article.id
-        )
-          ? existingShareMarketData
-          : [...existingShareMarketData, articleData];
-        localStorage.setItem(
-          "shareMarketData",
-          JSON.stringify(updatedShareMarketData)
-        );
-
-        console.log("Article stored in:", {
-          individual: `article_${article.id}`,
-          businessData: updatedBusinessData.length,
-          shareMarketData: updatedShareMarketData.length,
-        });
-      }
-    } catch (error) {
-      console.error("Storage error:", error);
-    }
-
+    console.log(`🧠 Article "${article.title}" stored in memory only`);
     return articleData;
   };
+
   // Function to get button text based on word count and expanded state
   const getButtonText = (article, section, sectionSpecificId) => {
     const wordCount = countWords(article.summary);
@@ -141,19 +82,14 @@ const ShareMarket = () => {
 
   // Handle click on Read More button
   const handleReadMoreClick = (article, section) => {
-    // Create a section-specific ID to avoid conflicts
     const sectionSpecificId = `${section}_${article.id}`;
 
-    // Check if the description has more than 50 words
     if (countWords(article.summary) > 50) {
-      // Store article data before navigating
-      const storedArticle = storeArticle(article);
-      console.log("Stored article for navigation:", storedArticle);
-
-      // Navigate to the article detail page
+      const isRss = article.isRss || section === "rss";
+      const storedArticle = storeArticle(article, isRss);
+      console.log("📄 Stored article for navigation:", storedArticle);
       navigate(`/article/${article.id}`);
     } else {
-      // For short descriptions, just toggle expand/collapse using section-specific ID
       toggleExpand(sectionSpecificId);
     }
   };
@@ -165,39 +101,42 @@ const ShareMarket = () => {
     }));
   };
 
-  // Update the loadMoreContent function:
   const loadMoreContent = () => {
     setIsLoadingMore(true);
+    console.log("🔄 Loading more content...");
 
-    // If we have RSS data that hasn't been displayed yet
     if (rssNewsData.length > 0 && rssLoadCount < rssNewsData.length) {
       const nextBatch = rssNewsData.slice(rssLoadCount, rssLoadCount + 4);
       setDisplayedRssNews((prev) => [...prev, ...nextBatch]);
       setRssLoadCount((prev) => prev + 4);
+      console.log(
+        `📰 Loaded ${nextBatch.length} more RSS articles (stored in memory only)`
+      );
       setIsLoadingMore(false);
       return;
     }
 
-    // If we haven't loaded RSS data yet, trigger the fetch
     if (!hasLoadedRss) {
       setHasLoadedRss(true);
+      console.log("📡 RSS loading enabled");
     } else {
-      // If we've already loaded all RSS data, just increase display count for API content
       setDisplayCount((prev) => prev + 4);
+      console.log("📈 Loading more API data (memory only)");
       setIsLoadingMore(false);
     }
   };
 
+  // handleDataLoaded - Hero gets latest only
   const handleDataLoaded = (apiData) => {
     try {
       if (!apiData || apiData.length === 0) {
         throw new Error("No market data available");
       }
 
-      // Generate more simulated data if needed
+      console.log("📊 Processing API data - Latest cycle");
+
       let extendedData = [...apiData];
       if (apiData.length < 30) {
-        // Create duplicates with slight modifications if not enough data
         for (let i = 0; i < 20; i++) {
           const originalItem = apiData[i % apiData.length];
           const stockChange =
@@ -207,7 +146,7 @@ const ShareMarket = () => {
 
           extendedData.push({
             ...originalItem,
-            id: originalItem.id + apiData.length + i, // Ensure unique IDs
+            id: originalItem.id + apiData.length + i,
             title: originalItem.title
               ? `${originalItem.title} - Extended Data ${i + 1}`
               : "No title available",
@@ -221,7 +160,6 @@ const ShareMarket = () => {
         }
       }
 
-      // Process market data
       const processedData = extendedData.map((item, index) => ({
         id: item.id || index,
         title: item.title || "No title available",
@@ -259,37 +197,42 @@ const ShareMarket = () => {
         sentiment: (item.stockChange || "").includes("+")
           ? "bullish"
           : "bearish",
+        isRssData: false,
       }));
 
-      // Use first 6 items for featured stocks
+      // HERO SECTION: Only latest data (first 6 items)
       const featuredData = processedData.slice(0, 6);
       setFeaturedStocks(featuredData);
+      console.log(
+        `🏆 Hero section updated with ${featuredData.length} latest articles`
+      );
 
-      // Store all latest content, but only display based on displayCount
+      // LATEST NEWS: Next batch for the main content
       const latestData = processedData.slice(6, 30);
       setLatestMarketNews(latestData);
 
-      // Store all articles in localStorage
+      // Store API data in memory only
       [...featuredData, ...latestData].forEach((article) => {
-        storeArticle(article);
+        storeArticle(article, false);
       });
 
-      console.log(`Latest market news count: ${latestData.length}`);
+      console.log(
+        `✅ ${processedData.length} API articles processed and stored in memory only`
+      );
 
       setError(null);
       setIsLoading(false);
     } catch (err) {
-      console.error("Error processing market data:", err);
+      console.error("❌ Error processing market data:", err);
       setError("Unable to load market content. Please try again later.");
       setIsLoading(false);
     }
   };
 
-  // Handle RSS data loaded
+  // Modified handleRssDataLoaded - RSS data stays in memory only
   const handleRssDataLoaded = (rssData) => {
-    console.log("RSS data loaded:", rssData.length);
+    console.log("📰 Processing RSS data - will be stored in memory only");
 
-    // Process RSS data to match our card format
     const processedRssData = rssData.map((item, index) => ({
       id: `rss_${item.id || index}`,
       title: item.title || "No title available",
@@ -306,7 +249,8 @@ const ShareMarket = () => {
       )} min read`,
       author: item.author || "Times of India",
       link: item.link || "",
-      isRss: true, // Flag to identify RSS content
+      isRss: true,
+      isRssData: true,
       stockPrice: `$${(Math.random() * 1000 + 10).toFixed(2)}`,
       stockChange:
         Math.random() > 0.5
@@ -317,24 +261,27 @@ const ShareMarket = () => {
 
     setRssNewsData(processedRssData);
 
-    // Store RSS articles in localStorage
+    // Store RSS data in memory only
     processedRssData.forEach((article) => {
-      storeArticle(article);
+      storeArticle(article, true);
     });
 
-    // Load first batch of RSS news
+    console.log(
+      `✅ ${processedRssData.length} RSS articles processed and stored in memory only`
+    );
+
     const firstBatch = processedRssData.slice(0, 4);
     setDisplayedRssNews(firstBatch);
     setRssLoadCount(4);
     setIsLoadingMore(false);
   };
 
-  // Store articles when they're loaded/updated
+  // Store articles when they're loaded/updated (memory only)
   useEffect(() => {
     if (featuredStocks.length > 0) {
       featuredStocks.forEach((article) => {
         if (!articleStorage[article.id]) {
-          storeArticle(article);
+          storeArticle(article, false);
         }
       });
     }
@@ -344,7 +291,7 @@ const ShareMarket = () => {
     if (latestMarketNews.length > 0) {
       latestMarketNews.forEach((article) => {
         if (!articleStorage[article.id]) {
-          storeArticle(article);
+          storeArticle(article, false);
         }
       });
     }
@@ -354,14 +301,15 @@ const ShareMarket = () => {
     if (displayedRssNews.length > 0) {
       displayedRssNews.forEach((article) => {
         if (!articleStorage[article.id]) {
-          storeArticle(article);
+          storeArticle(article, true);
         }
       });
     }
   }, [displayedRssNews]);
 
-  // Function to refresh news and clear storage
+  // Simplified refreshNews function - no localStorage operations
   const refreshNews = () => {
+    console.log("🔄 Refreshing news...");
     setIsLoading(true);
     setFeaturedStocks([]);
     setLatestMarketNews([]);
@@ -372,19 +320,12 @@ const ShareMarket = () => {
     setHasLoadedRss(false);
     setArticleStorage({});
 
-    // Clear localStorage
-    try {
-      if (typeof Storage !== "undefined") {
-        localStorage.removeItem("shareMarketData");
-        console.log("ShareMarket localStorage cleared");
-      }
-    } catch (error) {
-      console.warn("Could not clear localStorage");
-    }
+    console.log("🔄 All data cleared from memory");
+    console.log("🔄 API data will be refreshed via ShareMarketApi component");
   };
 
   const LoadingSkeleton = () => (
-    <div className="min-h-screen  flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="relative mb-8">
           <div className="w-20 h-20 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin mx-auto"></div>
@@ -400,6 +341,7 @@ const ShareMarket = () => {
       </div>
     </div>
   );
+
   const ErrorDisplay = () => (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-blue-900 to-black px-4">
       <div className="bg-black bg-opacity-70 p-8 rounded-lg shadow-md max-w-md w-full text-center border border-blue-500">
@@ -428,7 +370,7 @@ const ShareMarket = () => {
         </p>
         <button
           onClick={refreshNews}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-full transition duration-300 shadow-lg hover:shadow-blue-500/30"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-full transition duration-300 shadow-lg hover:shadow-blue-500/30 w-full"
         >
           Refresh Page
         </button>
@@ -446,7 +388,6 @@ const ShareMarket = () => {
     News: <Newspaper className="mr-2" size={16} />,
   };
 
-  // Get filtered items based on current category
   const getFilteredMarketNews = () => {
     return latestMarketNews.filter(
       (content) =>
@@ -457,9 +398,7 @@ const ShareMarket = () => {
     );
   };
 
-  // Render RSS news cards
   const renderRssNewsCard = (content) => {
-    // Your RSS card rendering logic or use BotherCards for RSS too
     return (
       <BotherCards
         key={content.id}
@@ -469,7 +408,7 @@ const ShareMarket = () => {
         image={content.image}
         date={content.date}
         isExpanded={expandedArticles[`rss_${content.id}`]}
-        onReadMore={() => handleReadMoreClick(`rss_${content.id}`)}
+        onReadMore={() => handleReadMoreClick(content, "rss")}
         fallbackImageCategory="news"
         maxWords={50}
       />
@@ -477,10 +416,8 @@ const ShareMarket = () => {
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen text-white">
+    <div className="bg-white min-h-screen text-white">
       <ShareMarketApi onDataLoaded={handleDataLoaded} />
-
-      {/* Replace this line with the controlled RSS fetcher */}
       <TimesOfIndiaBusinessFetcher
         onDataLoaded={handleRssDataLoaded}
         shouldFetch={hasLoadedRss}
@@ -492,22 +429,24 @@ const ShareMarket = () => {
         <ErrorDisplay />
       ) : (
         <section>
-          {/* Hero Section */}
-          <section className="relative overflow-hidden">
-            <div className="bg-gray-100 text-black py-10 px-6 lg:px-10">
+          {/* Hero Section - ONLY LATEST DATA */}
+          <section className="relative overflow-hidden bg-white">
+            <div className="bg-white text-black py-10 px-6 lg:px-10">
               <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-start mb-6">
                   <div>
                     <div className="flex items-center mb-2">
                       <FiTrendingUp className="mr-2 text-green-300" />
-                      <span className="text-sm font-medium">MARKET PULSE</span>
+                      <span className="text-sm font-medium">
+                        MARKET PULSE - LATEST
+                      </span>
                     </div>
                     <h1 className="text-4xl md:text-5xl font-bold mb-3 leading-tight">
                       Market <span className="text-green-300">Insights</span>
                     </h1>
                     <p className="text-lg opacity-90 max-w-3xl">
                       Track the latest trends and stay ahead with real-time
-                      market analysis
+                      market analysis 
                     </p>
                   </div>
                   <div className="hidden lg:block relative">
@@ -516,29 +455,44 @@ const ShareMarket = () => {
                   </div>
                 </div>
 
-                {/* Featured Stocks Grid */}
+                {/* Featured Stocks Grid - LATEST ONLY */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                   {featuredStocks.map((stock, index) => (
                     <BheroCards
                       key={stock.id}
                       stock={stock}
                       index={index}
-                      expandedArticles={expandedArticles}
-                      handleReadMoreClick={handleReadMoreClick}
-                      getButtonText={getButtonText}
-                      countWords={countWords}
                       categoryIcons={categoryIcons}
+                      onStoreArticle={storeArticle}
+                      maxWords={50}
                     />
-                  ))}{" "}
+                  ))}
                 </div>
+
+                {featuredStocks.length > 0 && (
+                  <div className="mt-4 text-center">
+                    {/* <p className="text-sm text-gray-600">
+                      🕒 Last updated: {new Date().toLocaleString()} | Next
+                      update in:{" "}
+                      {Math.ceil((900000 - (Date.now() % 900000)) / 60000)}{" "}
+                      minutes
+                    </p> */}
+                  </div>
+                )}
               </div>
             </div>
           </section>
 
+          {/* Slider Section - Now handled by Bslider component itself */}
+          <section className="bg-white py-6">
+            <div className="max-w-7xl mx-auto px-6 lg:px-10">
+              <Bslider onArticleStore={storeArticle} />
+            </div>
+          </section>
+
           {/* Main Content - Latest Market News */}
-          <main className="max-w-7xl mx-auto px-6 lg:px-10 py-10 bg-gray-100">
-            <div className="space-y-6">
-              {/* API-sourced news */}
+          <main className="max-w-7xl mx-auto px-6 lg:px-10 py-10 bg-white">
+            <div className="space-y-6 bg-white">
               {getFilteredMarketNews()
                 .slice(0, displayCount)
                 .map((content) => (
@@ -550,17 +504,16 @@ const ShareMarket = () => {
                     image={content.image}
                     date={content.date}
                     isExpanded={expandedArticles[content.id]}
-                    onReadMore={handleReadMoreClick}
+                    onReadMore={() => handleReadMoreClick(content, "api")}
                     fallbackImageCategory={
                       content.subcategory?.toLowerCase() || "finance"
                     }
                     maxWords={50}
                   />
                 ))}
-              {/* RSS-sourced news */}
+
               {displayedRssNews.map((content) => renderRssNewsCard(content))}
 
-              {/* Show Load More button */}
               {(getFilteredMarketNews().length > displayCount ||
                 rssLoadCount < rssNewsData.length ||
                 !hasLoadedRss) && (
@@ -568,7 +521,7 @@ const ShareMarket = () => {
                   <button
                     onClick={loadMoreContent}
                     disabled={isLoadingMore}
-                    className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-medium py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 flex items-center group disabled:cursor-not-allowed"
+                    className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-medium py-3 px-6 rounded-full shadow-md hover:shadow-lg transition-all duration-300 flex items-center group disabled:cursor-not-allowed"
                   >
                     {isLoadingMore ? (
                       <>

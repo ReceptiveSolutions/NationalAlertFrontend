@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SportsApi from '../api/sportsnews';
 import { Newspaper } from 'lucide-react';
+import {Sslider} from '../components/index';
 import { CardSM } from '../components/index';
 
 const SportsPage = () => {
@@ -13,7 +14,7 @@ const SportsPage = () => {
   const [displayCount, setDisplayCount] = useState(8);
   const [showNoMoreNewsPopup, setShowNoMoreNewsPopup] = useState(false);
   
-  // In-memory storage for articles (since localStorage isn't available)
+  // In-memory storage for articles
   const [articleStorage, setArticleStorage] = useState({});
   
   console.log(`Current display count in SportsPage: ${displayCount}`);
@@ -44,31 +45,17 @@ const SportsPage = () => {
       content: article.summary || article.content || 'No content available'
     };
     
-    // Store in component state instead of localStorage
+    // Store in component state (in-memory only)
     setArticleStorage(prev => ({
       ...prev,
       [article.id]: articleData
     }));
     
-    // Also try to store in localStorage if available
-    try {
-      if (typeof Storage !== 'undefined') {
-        localStorage.setItem(`article_${article.id}`, JSON.stringify(articleData));
-        // Store in category cache as well
-        const existingSportsData = JSON.parse(localStorage.getItem('sportsData') || '[]');
-        const updatedSportsData = existingSportsData.some(item => item.id === article.id) 
-          ? existingSportsData 
-          : [...existingSportsData, articleData];
-        localStorage.setItem('sportsData', JSON.stringify(updatedSportsData));
-      }
-    } catch (error) {
-      console.warn('localStorage not available, using in-memory storage');
-    }
-    
+    console.log(`Article "${article.title}" stored in memory only`);
     return articleData;
   };
 
-  //!! toggel discription 
+  //!! toggle description 
   const toggleDescription = (id) => {
     console.log("Toggling description for id:", id);
     const article = [...filteredNews].find(news => news.id === id);
@@ -204,7 +191,7 @@ const SportsPage = () => {
   console.log("Has more news:", hasMoreNews);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-8 relative">
+    <div className="min-h-screen bg-white py-4 sm:py-8 relative">
       <SportsApi onDataLoaded={handleDataLoaded} />
       
       {/* No More News Popup */}
@@ -315,6 +302,8 @@ const SportsPage = () => {
             </div>
           </div>
         )}
+
+        <Sslider></Sslider>
 
         {/* Top Stories - Improved responsive grid */}
         <div className="mb-8 sm:mb-12">

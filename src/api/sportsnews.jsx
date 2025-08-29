@@ -23,84 +23,88 @@ const SportsApi = ({ onDataLoaded }) => {
     
     return fallbackData;
   };
-  
-  // Check local storage for cached data
-  const getCachedData = () => {
-    const cachedDataStr = localStorage.getItem('sportsNewsData');
-    const cachedTimestamp = localStorage.getItem('sportsNewsDataTimestamp');
-    
-    if (cachedDataStr && cachedTimestamp) {
-      // Check if cache is still valid (less than 15 minutes old)
-      const now = new Date().getTime();
-      if (now - parseInt(cachedTimestamp) < 15 * 60 * 1000) {
-        try {
-          return JSON.parse(cachedDataStr);
-        } catch (e) {
-          console.error('❌ Failed to parse cached sports news data:', e);
-        }
-      }
-    }
-    return null;
-  };
-   
-  // Save data to cache
-  const cacheData = (data) => {
-    try {
-      localStorage.setItem('sportsNewsData', JSON.stringify(data));
-      localStorage.setItem('sportsNewsDataTimestamp', new Date().getTime().toString());
-    } catch (e) {
-      console.error('❌ Failed to cache sports news data:', e);
-    }
-  }; 
 
   const fetchSportsNews = async (retryCount = 0) => {
     try {
-      // First check if we have valid cached data
-      const cachedData = getCachedData();
-      if (cachedData) {
-        console.log('✅ Using cached sports news data');
-        onDataLoaded(cachedData);
-        return;
-      }
-      
       setIsRetrying(retryCount > 0);
       
-      // Fetch from your backend API
-//       const response = await fetch(
-//   `${import.meta.env.VITE_API_BASE_URL}/api/news/sports`
-// );
-       
-        const response = await fetch('https://nationalalertbackend.onrender.com/api/news/sports');
-
-      
+      // Call backend endpoint for sports news
+      const response = await fetch(`${BASE_URL}api/news?category=sports&limit=60`);
 
       if (!response.ok) {
         throw new Error(`Backend returned status ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('✅ Sports Backend Response:', data);
+      console.log('✅ Sports Backend API Response:', data);
 
-      // Handle both cached and fresh responses from backend
-      const articles = data.data || [];
-      
+      // Handle different response structures from backend
+      let articles;
+      if (Array.isArray(data)) {
+        articles = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        articles = data.data;
+      } else if (data.articles && Array.isArray(data.articles)) {
+        articles = data.articles;
+      } else {
+        // Try to extract articles from any property that contains an array
+        const keys = Object.keys(data);
+        const arrayKey = keys.find(key => Array.isArray(data[key]));
+        if (arrayKey) {
+          articles = data[arrayKey];
+        } else {
+          throw new Error('No articles found in API response');
+        }
+      }
+
       if (Array.isArray(articles) && articles.length > 0) {
-        const filteredArticles = articles.map((item, index) => ({
-          id: item.article_id || index,
-          title: item.title || 'No title available',
-          summary: item.description || 'No description available',
-          image: item.image_url || `https://source.unsplash.com/random/800x500/?sports`,
-          date: item.pubDate ? new Date(item.pubDate).toLocaleDateString() : new Date().toLocaleDateString(),
-          category: 'Sports',
-          subcategory: item.keywords ? item.keywords[0] : 'General Sports'
-        }));
+        const sportsCategories = ['Football', 'Basketball', 'Cricket', 'Tennis', 'Golf', 'Formula 1'];
         
-        // Cache the successful response
-        cacheData(filteredArticles);
+        // Process the articles
+        const filteredArticles = articles.map((item, index) => {
+          // Determine the most appropriate subcategory based on content
+          let subcategory = 'General Sports';
+          const content = (item.title + ' ' + (item.description || item.summary || '')).toLowerCase();
+          
+          if (content.includes('football') || content.includes('soccer') || content.includes('nfl')) {
+            subcategory = 'Football';
+          } else if (content.includes('basketball') || content.includes('nba')) {
+            subcategory = 'Basketball';
+          } else if (content.includes('cricket')) {
+            subcategory = 'Cricket';
+          } else if (content.includes('tennis')) {
+            subcategory = 'Tennis';
+          } else if (content.includes('golf')) {
+            subcategory = 'Golf';
+          } else if (content.includes('formula') || content.includes('f1') || content.includes('racing')) {
+            subcategory = 'Formula 1';
+          } else if (item.keywords && item.keywords.length > 0) {
+            // Use first keyword as subcategory if available
+            const keyword = item.keywords[0];
+            const matchedCategory = sportsCategories.find(cat => 
+              keyword.toLowerCase().includes(cat.toLowerCase())
+            );
+            subcategory = matchedCategory || subcategory;
+          }
+          
+          return {
+            id: item.article_id || item.id || index,
+            title: item.title || 'No title available',
+            summary: item.description || item.summary || item.content || 'No description available',
+            image: item.image_url || item.image || item.urlToImage || `https://source.unsplash.com/random/800x500/?${subcategory.toLowerCase()},sports`,
+            date: item.pubDate || item.publishedAt || item.date ? new Date(item.pubDate || item.publishedAt || item.date).toLocaleDateString() : new Date().toLocaleDateString(),
+            category: item.category || 'Sports',
+            subcategory: subcategory
+          };
+        });
+        
+        console.log('✅ Processed sports articles:', filteredArticles.length);
+        
+        // Send processed data to parent component (stored in memory only)
         onDataLoaded(filteredArticles);
         setIsRetrying(false);
       } else {
-        throw new Error('No sports results found in the API response');
+        throw new Error('No articles found in the processed data');
       }
     } catch (error) {
       console.error(`❌ Failed to fetch sports news (attempt ${retryCount + 1}):`, error);
@@ -114,21 +118,9 @@ const SportsApi = ({ onDataLoaded }) => {
           fetchSportsNews(retryCount + 1);
         }, delay);
       } else {
-        // After all retries failed, check for old cache as last resort
-        const oldCache = localStorage.getItem('sportsNewsData');
-        if (oldCache) {
-          try {
-            console.log('⚠️ Using expired cache as fallback');
-            onDataLoaded(JSON.parse(oldCache));
-          } catch (e) {
-            console.error('❌ Failed to parse expired cache:', e);
-            onDataLoaded(generateFallbackData());
-          }
-        } else {
-          // Generate placeholder data as final fallback
-          console.log('⚠️ Using generated placeholder data');
-          onDataLoaded(generateFallbackData());
-        }
+        // Generate placeholder data as final fallback
+        console.log('⚠️ Using generated placeholder data');
+        onDataLoaded(generateFallbackData());
         setIsRetrying(false);
       }
     }
@@ -141,7 +133,7 @@ const SportsApi = ({ onDataLoaded }) => {
     return () => {
       setIsRetrying(false);
     };
-  }, []); // No dependencies since sports is static
+  }, []);
 
   // Show a minimal loading indicator if we're retrying
   return isRetrying ? (

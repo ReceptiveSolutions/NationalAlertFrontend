@@ -13,7 +13,7 @@ import {
 import { Newspaper } from "lucide-react";
 import EntertainmentApi from "../api/entertainmentapi";
 import TimesOfIndiaEntertainmentFetcher from "../Rss/EntertainmentNews"; // Adjust path as needed
-import { EheroCards, ElatestCards } from "../components/index";
+import { EheroCards, ElatestCards, Eslider } from "../components/index";
 
 const Entertainment = () => {
   const navigate = useNavigate();
@@ -29,13 +29,7 @@ const Entertainment = () => {
   const [displayCount, setDisplayCount] = useState(6);
   const [showRssData, setShowRssData] = useState(false);
   const [rssDataLoaded, setRssDataLoaded] = useState(false);
-  const [rssDisplayCount, setRssDisplayCount] = useState(4); // Add RSS display count
-
-  // In-memory storage for articles (fallback when localStorage isn't available)
-  const [articleStorage, setArticleStorage] = useState({});
-
-  // Debug log to check if loadMoreContent is called
-  console.log(`Current display count: ${displayCount}`);
+  const [rssDisplayCount, setRssDisplayCount] = useState(4);
 
   // Helper function to count words
   const countWords = (str) => {
@@ -48,57 +42,6 @@ const Entertainment = () => {
     if (!text) return false;
     const wordCount = countWords(text);
     return wordCount > 50;
-  };
-
-  // Function to store article data (similar to sports page)
-  const storeArticle = (article) => {
-    const articleData = {
-      ...article,
-      date: article.date || new Date().toLocaleDateString(),
-      author: article.author || "Entertainment Reporter",
-      readTime:
-        article.readTime ||
-        `${Math.ceil(countWords(article.summary || "") / 200)} min read`,
-      content: article.summary || article.content || "No content available",
-      category: "Entertainment",
-      subcategory: article.subcategory || "General",
-    };
-
-    // Store in component state as fallback
-    setArticleStorage((prev) => ({
-      ...prev,
-      [article.id]: articleData,
-    }));
-
-    // Try to store in localStorage if available
-    try {
-      if (typeof Storage !== "undefined") {
-        localStorage.setItem(
-          `article_${article.id}`,
-          JSON.stringify(articleData)
-        );
-
-        // Store in entertainment category cache as well
-        const existingEntertainmentData = JSON.parse(
-          localStorage.getItem("entertainmentData") || "[]"
-        );
-        const updatedEntertainmentData = existingEntertainmentData.some(
-          (item) => item.id === article.id
-        )
-          ? existingEntertainmentData
-          : [...existingEntertainmentData, articleData];
-        localStorage.setItem(
-          "entertainmentData",
-          JSON.stringify(updatedEntertainmentData)
-        );
-
-        console.log("Article stored in localStorage:", article.id);
-      }
-    } catch (error) {
-      console.warn("localStorage not available, using in-memory storage");
-    }
-
-    return articleData;
   };
 
   // Helper function to get button text based on word count
@@ -117,11 +60,7 @@ const Entertainment = () => {
     const wordCount = countWords(content.summary);
 
     if (wordCount > 50) {
-      // Store article data before navigation
-      const storedArticle = storeArticle(content);
-      console.log("Stored article:", storedArticle);
-
-      // Navigate to article detail page
+      // Navigate to article detail page (data will be fetched from database)
       navigate(`/article/${content.id}`);
     } else {
       // For shorter content, just toggle expansion
@@ -157,7 +96,7 @@ const Entertainment = () => {
         // Process RSS data to match the expected format
         const processedRssData = rssData.map((item, index) => ({
           ...item,
-          id: `rss-${index}`, // Prefix with 'rss-' to distinguish from API data
+          id: item.id, // Prefix with 'rss-' to distinguish from API data
           subcategory: item.category || "Entertainment",
           readTime: `${Math.max(
             1,
@@ -170,11 +109,6 @@ const Entertainment = () => {
 
         setRssContent(processedRssData);
         setRssDataLoaded(true);
-
-        // Store RSS articles in localStorage
-        processedRssData.forEach((article) => {
-          storeArticle(article);
-        });
       }
     } catch (error) {
       console.error("Error processing RSS data:", error);
@@ -189,60 +123,46 @@ const Entertainment = () => {
         throw new Error("No entertainment data available");
       }
 
-      // Process entertainment data
+      // Process entertainment data - FIXED: Don't override the ID!
       const processedData = apiData.map((item, index) => ({
-        id: `main-${index}`,
+        // ✅ Use the original UUID from backend
+        id: item.id, // Keep the original UUID from your backend
         title: item.title || "No title available",
-        summary: item.summary || "No description available",
+        summary: item.summary || item.description || "No description available", // Use description as fallback
         image:
-          item.image ||
-          `https://source.unsplash.com/random/800x500/?entertainment,${item.subcategory.toLowerCase()}`,
-        date: item.date || new Date().toLocaleDateString(),
-        category: item.category || "Entertainment",
-        subcategory: item.subcategory || "General",
+          item.image_url ||
+          item.image || // Use image_url from backend
+          `https://source.unsplash.com/random/800x500/?entertainment,${(
+            item.category?.[0] || "general"
+          ).toLowerCase()}`,
+        date: item.created_at
+          ? new Date(item.created_at).toLocaleDateString()
+          : new Date().toLocaleDateString(),
+        category: item.category || ["Entertainment"],
+        subcategory: Array.isArray(item.category)
+          ? item.category[0]
+          : item.category || "General",
         readTime: `${Math.max(
           1,
-          Math.floor((item.summary?.length || 0) / 200)
+          Math.floor(((item.summary || item.description)?.length || 0) / 200)
         )} min read`,
         isHot: index % 5 === 0,
         rating: Math.min(5, (index % 5) + 3), // Generate ratings 3-5
         source: "API", // Add source identifier
+        // Include all original properties to ensure nothing is lost
+        ...item,
       }));
 
-      // Generate more simulated data if needed
-      let extendedData = [...processedData];
-      if (processedData.length < 30) {
-        // Create duplicates with slight modifications if not enough data
-        for (let i = 0; i < 20; i++) {
-          const originalItem = processedData[i % processedData.length];
-          extendedData.push({
-            ...originalItem,
-            id: `main-${processedData.length + i}`,
-            title: originalItem.title
-              ? `${originalItem.title} - Extended`
-              : "No title available",
-            summary: originalItem.summary
-              ? `${originalItem.summary.substring(0, 50)}... `
-              : "No description available",
-            source: "API",
-          });
-        }
-      }
+      console.log(
+        "✅ Processed data with original UUIDs:",
+        processedData.map((item) => ({ id: item.id, title: item.title }))
+      );
 
-      setFeaturedContent(extendedData.slice(0, 6));
-      // Store all latest content, but only display based on displayCount
-      setLatestContent(extendedData.slice(6, 30)); // Ensuring we have more content items available
+      // Don't create duplicates - use only the real data from backend
+      setFeaturedContent(processedData.slice(0, 6));
+      setLatestContent(processedData.slice(6)); // Use all remaining data
 
-      console.log(`Latest content count: ${extendedData.slice(6, 30).length}`); // Debug log
-
-      // Store all articles in localStorage
-      extendedData.forEach((article) => {
-        storeArticle(article);
-      });
-
-      // Store trending content as well
       setTrendingContent((prev) => {
-        prev.forEach((article) => storeArticle(article));
         return prev;
       });
 
@@ -255,28 +175,17 @@ const Entertainment = () => {
     }
   };
 
-  // Function to refresh entertainment data (similar to sports page)
+  // Function to refresh entertainment data
   const refreshEntertainment = () => {
     setIsLoading(true);
     setFeaturedContent([]);
     setLatestContent([]);
     setRssContent([]);
     setTrendingContent([]);
-    setArticleStorage({}); // Clear article storage
     setRssDataLoaded(false);
     setShowRssData(false);
     setDisplayCount(6);
-    setRssDisplayCount(4); // Reset RSS display count
-
-    // Clear localStorage entertainment data if needed
-    try {
-      if (typeof Storage !== "undefined") {
-        localStorage.removeItem("entertainmentData");
-        console.log("Entertainment localStorage data cleared");
-      }
-    } catch (error) {
-      console.warn("Could not clear localStorage");
-    }
+    setRssDisplayCount(4);
   };
 
   const LoadingSkeleton = () => (
@@ -359,7 +268,7 @@ const Entertainment = () => {
             activeCategory === "all" ||
             content.subcategory.toLowerCase().includes(activeCategory)
         )
-        .slice(0, rssDisplayCount); // Use rssDisplayCount instead of showing all
+        .slice(0, rssDisplayCount);
       contentToShow = [...contentToShow, ...rssToShow];
     }
 
@@ -373,7 +282,7 @@ const Entertainment = () => {
         activeCategory === "all" ||
         content.subcategory.toLowerCase().includes(activeCategory)
     );
-    
+
     const filteredRss = rssContent.filter(
       (content) =>
         activeCategory === "all" ||
@@ -430,13 +339,13 @@ const Entertainment = () => {
                 </div>
 
                 {/* Featured Content Grid */}
+                {/* Featured Content Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                   {featuredContent.map((content, index) => (
                     <EheroCards
-                      key={content.id}
+                      key={content.id} // ✅ Changed from key={index} to use real UUID
                       content={content}
                       index={index}
-                      onStoreArticle={storeArticle}
                       categoryIcons={categoryIcons}
                     />
                   ))}
@@ -445,54 +354,48 @@ const Entertainment = () => {
             </div>
           </section>
 
-          
-         {/* Main Content */}
-<main className="max-w-7xl mx-auto px-6 lg:px-10 py-10">
-  {/* Latest Content Section - Now Full Width */}
-  <div className="w-full">
-    <div className="flex items-center justify-between mb-8">
-      <h2 className="text-3xl font-bold text-white flex items-center">
-        <FiClock className="mr-3 text-pink-500" />
-        Latest Updates
-      </h2>
-    </div>
+          {/* Main Content */}
+          <main className="max-w-7xl mx-auto px-6 lg:px-10 py-10">
+            {/* Latest Content Section - Now Full Width */}
+            <div className="w-full">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-3xl font-bold text-white flex items-center">
+                  <FiClock className="mr-3 text-pink-500" />
+                  Latest Updates
+                </h2>
+              </div>
 
-    <div className="space-y-6">
-      {getContentToDisplay().map((content) => (
-        <ElatestCards
-          key={content.id}
-          content={content}
-          onStoreArticle={storeArticle}
-        />
-      ))}
+              <Eslider></Eslider>
+              <div className="space-y-6">
+                {getContentToDisplay().map((content) => (
+                  <ElatestCards key={content.id} content={content} />
+                ))}
 
-      {/* Load More Button */}
-      {hasMoreContent() && (
-        <div className="flex justify-center mt-8">
-          <button
-            onClick={loadMoreContent}
-            disabled={isLoadingRss}
-            className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-full shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            {isLoadingRss ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Loading Content...
-              </>
-            ) : (
-              <>
-                {rssDataLoaded
-                  ? "Load More Content"
-                  : "Load Content"}
-                <FiArrowRight className="ml-2" />
-              </>
-            )}
-          </button>
-        </div>
-      )}
-    </div>
-  </div>
-</main>
+                {/* Load More Button */}
+                {hasMoreContent() && (
+                  <div className="flex justify-center mt-8">
+                    <button
+                      onClick={loadMoreContent}
+                      disabled={isLoadingRss}
+                      className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-full shadow-lg hover:shadow-pink-500/30 transition-all duration-300 flex items-center transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {isLoadingRss ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Loading Content...
+                        </>
+                      ) : (
+                        <>
+                          {rssDataLoaded ? "Load More Content" : "Load Content"}
+                          <FiArrowRight className="ml-2" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </main>
         </section>
       )}
     </div>

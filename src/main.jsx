@@ -11,7 +11,9 @@ import ArticleDetailPage from './pages/newsdeatil';
 import HealthPage from './pages/healthpage';
 import LatestNews from './pages/latestpage'
 import ReportCrimeForm from './pages/reportCrimeForm';
-import SearchResults from './pages/SearchResults';
+import SearchResults from './pages/SearchResults'
+import MumbaiPage from './pages/IndiaStatesPages/MumbaiPage'
+import GujratPage from './pages/IndiaStatesPages/Gujaratpage'
 
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -29,6 +31,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="latest" element={<LatestNews/>} />
           <Route path="crimeReportForm" element={<ReportCrimeForm/>}/>
           <Route path="/search" element={<SearchResults />} />
+          <Route path="mumbai" element={<MumbaiPage/>} />
+          <Route path="gujrat" element={<GujratPage/>} />
+          
         </Route>
       </Routes>
     </BrowserRouter>
