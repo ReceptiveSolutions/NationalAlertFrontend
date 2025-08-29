@@ -16,8 +16,9 @@ const GujaratPage = ({ onArticleStore, navigate }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedArticles, setExpandedArticles] = useState({});
+  
   const maxWords = 50;
-
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const getFallbackImage = (index = 0) => {
     const gujaratImages = [
       'gujarat,cityscape',

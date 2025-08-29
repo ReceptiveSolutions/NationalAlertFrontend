@@ -19,6 +19,8 @@ const Hslider = ({ onArticleStore }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
   const getFallbackImage = (index, category) => {
     const crimeCategories = ['sports'];
     const techCategories = ['technology', 'computer', 'smartphone', 'artificial-intelligence', 'cybersecurity'];

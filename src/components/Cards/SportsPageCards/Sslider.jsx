@@ -19,6 +19,8 @@ const Sslider = ({ onArticleStore }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
   const getFallbackImage = (index) => {
     const categories = ['football', 'basketball', 'soccer', 'tennis', 'cricket', 'baseball'];
     return `https://source.unsplash.com/800x600/?${categories[index % categories.length]}`;

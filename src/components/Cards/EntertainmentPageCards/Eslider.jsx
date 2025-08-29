@@ -18,6 +18,7 @@ const Eslider = ({ onArticleStore }) => {
   const [retryCount, setRetryCount] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   const getFallbackImage = (index) => {
     const categories = ['movies', 'celebrities', 'music', 'tv-shows', 'hollywood', 'bollywood'];

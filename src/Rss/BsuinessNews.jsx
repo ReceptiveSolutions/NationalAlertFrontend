@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
 const BusinessNewsFetcher = ({ onDataLoaded, shouldFetch }) => {
+
   const [hasFetched, setHasFetched] = useState(false);
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   useEffect(() => {
     if (shouldFetch && !hasFetched) {

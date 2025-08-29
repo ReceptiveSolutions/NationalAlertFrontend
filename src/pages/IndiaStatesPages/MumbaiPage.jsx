@@ -19,6 +19,8 @@ const MumbaiPage = ({ onArticleStore, navigate }) => {
   const [expandedArticles, setExpandedArticles] = useState({});
   const maxWords = 50;
 
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
   const getFallbackImage = (index = 0) => {
     const mumbaiImages = [
       'mumbai,cityscape',
